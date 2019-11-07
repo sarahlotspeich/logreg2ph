@@ -77,7 +77,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
       suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
     # Check for convergence -----------------------------------------
-    gamma_conv <- abs(new_gamma - prev_gamma)<TOL_gamma
+    gamma_conv <- abs(new_gamma - prev_gamma)<TOL
     ## ---------------- Update gamma using weighted logistic regression
     ###################################################################
     ## Update {p_kj} --------------------------------------------------
@@ -86,7 +86,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
       rowsum(u_t, group = rep(seq(1,m), each = (n-n_v)), reorder = TRUE)
     new_p <- t(t(new_p_num)/colSums(new_p_num))
     ### Check for convergence -----------------------------------------
-    p_conv <- abs(new_p - prev_p)<TOL_p
+    p_conv <- abs(new_p - prev_p)<TOL
     ## -------------------------------------------------- Update {p_kj}
     ###################################################################
     # M Step ----------------------------------------------------------
@@ -141,12 +141,12 @@ observed_data_loglik <- function(n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_
   # For unvalidated subjects ------------------------------------------------------
   ## Calculate P_theta(y|x) for all (y,xk) ----------------------------------------
   pY_X <- 1/(1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[-c(1:n_v),c(X_val, C)]) %*% theta)))
-  pY_X[which(comp_dat_unval[,Y_val] == 0)] <- 1-pY_X[which(comp_dat_unval[,Y_val] == 0)]
+  pY_X[which(comp_dat_all[-c(1:n_v),Y_val] == 0)] <- 1-pY_X[which(comp_dat_all[-c(1:n_v),Y_val] == 0)]
   ## ---------------------------------------- Calculate P_theta(y|x) for all (y,xk)
   ################################################################################
   ## Calculate P(Yi*|Xi*,y,xk) for all (y,xk) ------------------------------------
   pYstar <- 1/(1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[-c(1:n_v),c(X_unval, Y_val, X_val, C)]) %*% gamma)))
-  pYstar[which(comp_dat_unval[,Y_unval] == 0)] <- 1 - pYstar[which(comp_dat_unval[,Y_unval] == 0)]
+  pYstar[which(comp_dat_all[-c(1:n_v),Y_unval] == 0)] <- 1 - pYstar[which(comp_dat_all[-c(1:n_v),Y_unval] == 0)]
   ## ------------------------------------ Calculate P(Yi*|Xi*,y,xk) for all (y,xk)
   ################################################################################
   ## Calculate Bj(Xi*) p_kj for all (k,j) ----------------------------------------
