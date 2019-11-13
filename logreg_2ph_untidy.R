@@ -109,7 +109,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
               "converged_msg" = CONVERGED_MSG))
 }
 
-observed_data_loglik <- function(n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Bspline=NULL, comp_dat_all, theta, gamma, p)
+observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Bspline=NULL, comp_dat_all, theta, gamma, p)
 {
   sn <- ncol(p)
   m <- nrow(p)
@@ -340,7 +340,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     {
       suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
-    if(VERBOSE) print(new_theta)
+    #if(VERBOSE) print(new_theta)
     ### Check for convergence -----------------------------------------
     theta_conv <- abs(new_theta - prev_theta)<TOL_theta
     ## --------------------------------------------------- Update theta
@@ -364,7 +364,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     {
       suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
-    if(VERBOSE) print(new_gamma)
+    #if(VERBOSE) print(new_gamma)
     # Check for convergence -----------------------------------------
     gamma_conv <- abs(new_gamma - prev_gamma)<TOL_gamma
     ## ---------------- Update gamma using weighted logistic regression
@@ -374,7 +374,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     new_p_num <- p_val_num + 
       rowsum(u_t, group = rep(seq(1,m), each = (n-n_v)), reorder = TRUE)
     new_p <- t(t(new_p_num)/colSums(new_p_num))
-    if(VERBOSE) print(new_p[1,])
+    #if(VERBOSE) print(new_p[1,])
     ### Check for convergence -----------------------------------------
     p_conv <- abs(new_p - prev_p)<TOL_p
     ## -------------------------------------------------- Update {p_kj}
@@ -407,7 +407,11 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     CONVERGED_MSG = "MAX_ITER reached"
     new_theta <- matrix(NA, nrow = nrow(prev_theta))
   }
-  if(CONVERGED) CONVERGED_MSG <- "Converged"
+  if(CONVERGED)
+  {
+    CONVERGED_MSG <- "Converged"
+    print(paste("SMLE converged after", it, "iterations", sep = " "))
+  }
   # ---------------------------------------------- Estimate theta using EM
   if(noSE | !CONVERGED)
   {
@@ -451,22 +455,14 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     # }
     
     ## Calculate pl(theta) -------------------------------------------------
-    pl_params <- profile_out(theta = new_theta, 
-                             n_v = n_v, n = n, 
-                             Y_unval=Y_unval, Y_val=Y_val, 
-                             X_unval=X_unval, X_val=X_val, 
-                             C=C, Bspline=Bspline, 
-                             comp_dat_all = comp_dat_all,
-                             gamma0 = gamma0, p0 = p0, p_val_num = p_val_num,
-                             newton_step_scale = newton_step_scale)
-    od_loglik_theta <- observed_data_loglik(n_v = n_v, 
+    od_loglik_theta <- observed_data_loglik(n = n, n_v = n_v, 
                                             Y_unval=Y_unval, Y_val=Y_val, 
                                             X_unval=X_unval, X_val=X_val, 
                                             C=C, Bspline=Bspline, 
                                             comp_dat_all = comp_dat_all, 
                                             theta = new_theta,
-                                            gamma = pl_params$gamma, 
-                                            p = pl_params$p_at_conv)
+                                            gamma = new_gamma, 
+                                            p = new_p)
     
     I_theta <- matrix(0, nrow = nrow(new_theta), ncol = nrow(new_theta))
     for (k in 1:ncol(I_theta))
@@ -479,9 +475,9 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                C=C, Bspline=Bspline, 
                                comp_dat_all = comp_dat_all, 
                                comp_dat_unval = comp_dat_unval, 
-                               gamma0 = gamma0, p0 = p0, p_val_num = p_val_num,
+                               gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
                                newton_step_scale = newton_step_scale)
-      od_loglik_pert_k <- observed_data_loglik(n_v = n_v, 
+      od_loglik_pert_k <- observed_data_loglik(n = n, n_v = n_v, 
                                                Y_unval=Y_unval, Y_val=Y_val, 
                                                X_unval=X_unval, X_val=X_val, 
                                                C=C, Bspline=Bspline, 
@@ -501,10 +497,10 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                  C=C, Bspline=Bspline, 
                                  comp_dat_all = comp_dat_all, 
                                  comp_dat_unval = comp_dat_unval, 
-                                 gamma0 = gamma0, p0 = p0, p_val_num = p_val_num,
+                                 gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
                                  newton_step_scale = newton_step_scale)
         
-        od_loglik_pert_both <- observed_data_loglik(n_v = n_v, 
+        od_loglik_pert_both <- observed_data_loglik(n = n, n_v = n_v, 
                                                     Y_unval=Y_unval, Y_val=Y_val, 
                                                     X_unval=X_unval, X_val=X_val, 
                                                     C=C, Bspline=Bspline, 
@@ -525,10 +521,10 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                    C=C, Bspline=Bspline, 
                                    comp_dat_all = comp_dat_all, 
                                    comp_dat_unval = comp_dat_unval, 
-                                   gamma0 = gamma0, p0 = p0, p_val_num = p_val_num,
+                                   gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
                                    newton_step_scale = newton_step_scale)
 
-          od_loglik_pert_l <- observed_data_loglik(n_v = n_v, 
+          od_loglik_pert_l <- observed_data_loglik(n = n, n_v = n_v, 
                                                    Y_unval=Y_unval, Y_val=Y_val, 
                                                    X_unval=X_unval, X_val=X_val, 
                                                    C=C, Bspline=Bspline, 
