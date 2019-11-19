@@ -166,7 +166,7 @@ observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL,
   return(return_loglik)
 }
 
-TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero", h_n_scale = 1, newton_step_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL_theta = 1E-6, TOL_gamma = 1E-4, TOL_p = 1E-4, MAX_ITER = 1000, save_all = FALSE)
+TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero", h_n_scale = 1, newton_step_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL_theta = 1E-6, TOL_gamma = 1E-4, TOL_p = 1E-4, MAX_ITER = 1000)
 {
   n <- nrow(data)
   n_v <- sum(data[,Validated])
@@ -221,13 +221,13 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   }
   if(initial_lr_params == "Complete-data")
   {
-    prev_theta <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_val, "~", paste(c(X_val, C), collapse = "+"))), family = "binomial", data = data[c(1:n_v),])$coefficients, ncol = 1)
-    prev_gamma <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, Y_val, X_val, C), collapse = "+"))), family = "binomial", data = data[c(1:n_v),])$coefficient, ncol = 1)
+    prev_theta <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_val, "~", paste(c(X_val, C), collapse = "+"))), family = "binomial", data = data.frame(data[c(1:n_v),]))$coefficients, ncol = 1)
+    prev_gamma <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, Y_val, X_val, C), collapse = "+"))), family = "binomial", data = data.frame(data[c(1:n_v),]))$coefficient, ncol = 1)
   }
   if(initial_lr_params == "Naive")
   {
-    prev_theta <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, C), collapse = "+"))), family = "binomial", data = data[c(1:n_v),])$coefficients, ncol = 1)
-    prev_gamma <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, Y_val, X_val, C), collapse = "+"))), family = "binomial", data = data[c(1:n_v),])$coefficient, ncol = 1)
+    prev_theta <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, C), collapse = "+"))), family = "binomial", data = data.frame(data[c(1:n_v),]))$coefficients, ncol = 1)
+    prev_gamma <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, Y_val, X_val, C), collapse = "+"))), family = "binomial", data = data.frame(data[c(1:n_v),]))$coefficient, ncol = 1)
   }
   
   theta_formula <- as.formula(paste0(Y_val, "~", paste(c(X_val, C), collapse = "+")))
@@ -248,13 +248,6 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
-  if(save_all)
-  {
-    save_theta <- vector()
-    save_gamma <- vector()
-    save_p <- vector()
-  }
-  
   # Estimate theta using EM -------------------------------------------
   while(it <= MAX_ITER & !CONVERGED)
   {
@@ -340,7 +333,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     {
       suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
-    #if(VERBOSE) print(new_theta)
+    if(VERBOSE) print(new_theta)
     ### Check for convergence -----------------------------------------
     theta_conv <- abs(new_theta - prev_theta)<TOL_theta
     ## --------------------------------------------------- Update theta
@@ -387,22 +380,14 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     if (mean(all_conv) == 1) CONVERGED <- TRUE
     
     it <- it + 1
-    
-    if(save_all)
-    {
-      save_theta <- append(save_theta, new_theta)
-      save_gamma <- append(save_gamma, new_gamma)
-      save_p <- append(save_p, new_p)
-      #plot(x = seq(1,it), y = save_theta[seq(2,length(save_theta), by=3)], type = "l")
-    }
-    
+
     # Update values for next iteration  -------------------------------
     prev_theta <- new_theta
     prev_gamma <- new_gamma
     prev_p <- new_p 
   }
   
-  if(!CONVERGED & it > MAX_ITER) 
+if(!CONVERGED & it > MAX_ITER) 
   {
     CONVERGED_MSG = "MAX_ITER reached"
     new_theta <- matrix(NA, nrow = nrow(prev_theta))
@@ -416,30 +401,12 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   if(noSE | !CONVERGED)
   {
     rownames(new_theta) <- c("Intercept", X_val,C)
-    if(save_all)
-    {
-      return(list(Coefficients = data.frame(Coefficient = new_theta, 
-                                            SE = NA),
-                  converged = CONVERGED,
-                  converged_msg = CONVERGED_MSG,
-                  initial_vals = initial_lr_params, 
-                  iterations = it,
-                  all_iter_thetas = save_theta,
-                  all_iter_gammas = save_gamma, 
-                  all_iter_p = save_p))
-    }
-    if(!save_all)
-    {
-      return(list(Coefficients = data.frame(Coefficient = new_theta, 
-                                            SE = NA),
-                  converged = CONVERGED,
-                  converged_msg = CONVERGED_MSG,
-                  initial_vals = initial_lr_params, 
-                  iterations = it,
-                  all_iter_thetas = NA,
-                  all_iter_gammas = NA, 
-                  all_iter_p = NA))
-    }
+    return(list(Coefficients = data.frame(Coefficient = new_theta, 
+                                          SE = NA),
+                converged = CONVERGED,
+                converged_msg = CONVERGED_MSG,
+                initial_vals = initial_lr_params, 
+                iterations = it))
   } else
   {
     rownames(new_theta) <- c("Intercept", X_val,C)
