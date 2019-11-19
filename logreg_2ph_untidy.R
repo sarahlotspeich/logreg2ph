@@ -387,7 +387,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     prev_p <- new_p 
   }
   
-if(!CONVERGED & it > MAX_ITER) 
+  if(!CONVERGED & it > MAX_ITER) 
   {
     CONVERGED_MSG = "MAX_ITER reached"
     new_theta <- matrix(NA, nrow = nrow(prev_theta))
@@ -405,6 +405,7 @@ if(!CONVERGED & it > MAX_ITER)
                                           SE = NA),
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
+                h_n = NA,
                 initial_vals = initial_lr_params, 
                 iterations = it))
   } else
@@ -412,14 +413,6 @@ if(!CONVERGED & it > MAX_ITER)
     rownames(new_theta) <- c("Intercept", X_val,C)
     # Estimate Cov(theta) using profile likelihood -------------------------
     h_n <- h_n_scale*n^(-1/2) # perturbation ----------------------------
-    
-    # CONVERGED_SE <- FALSE
-    # while(!CONVERGED_SE)
-    # {
-    #   ---
-    #   
-    #   h_n_scale <- 1/2*h_n_scale
-    # }
     
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik(n = n, n_v = n_v, 
@@ -505,11 +498,94 @@ if(!CONVERGED & it > MAX_ITER)
     }
     I_theta <- h_n^(-2) * I_theta
     cov_theta <- -solve(I_theta)
+    
+    while(NaN %in% suppressWarnings(sqrt(diag(cov_theta))))
+    {
+      h_n <- 1/2*h_n
+      
+      I_theta <- matrix(0, nrow = nrow(new_theta), ncol = nrow(new_theta))
+      for (k in 1:ncol(I_theta))
+      {
+        pert_k <- new_theta; pert_k[k] <- pert_k[k] + h_n
+        pl_params <- profile_out(theta = pert_k, 
+                                 n_v = n_v, n = n, 
+                                 Y_unval=Y_unval, Y_val=Y_val, 
+                                 X_unval=X_unval, X_val=X_val, 
+                                 C=C, Bspline=Bspline, 
+                                 comp_dat_all = comp_dat_all, 
+                                 comp_dat_unval = comp_dat_unval, 
+                                 gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
+                                 newton_step_scale = newton_step_scale)
+        od_loglik_pert_k <- observed_data_loglik(n = n, n_v = n_v, 
+                                                 Y_unval=Y_unval, Y_val=Y_val, 
+                                                 X_unval=X_unval, X_val=X_val, 
+                                                 C=C, Bspline=Bspline, 
+                                                 comp_dat_all = comp_dat_all, 
+                                                 theta = pert_k,
+                                                 gamma = pl_params$gamma, 
+                                                 p = pl_params$p_at_conv)
+        for (l in k:nrow(I_theta))
+        {
+          pert_l <- new_theta; pert_l[l] <- pert_l[l] + h_n
+          pert_both <- pert_l; pert_both[k] <- pert_both[k] + h_n
+          
+          pl_params <- profile_out(theta = pert_both, 
+                                   n_v = n_v, n = n, 
+                                   Y_unval=Y_unval, Y_val=Y_val, 
+                                   X_unval=X_unval, X_val=X_val, 
+                                   C=C, Bspline=Bspline, 
+                                   comp_dat_all = comp_dat_all, 
+                                   comp_dat_unval = comp_dat_unval, 
+                                   gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
+                                   newton_step_scale = newton_step_scale)
+          
+          od_loglik_pert_both <- observed_data_loglik(n = n, n_v = n_v, 
+                                                      Y_unval=Y_unval, Y_val=Y_val, 
+                                                      X_unval=X_unval, X_val=X_val, 
+                                                      C=C, Bspline=Bspline, 
+                                                      comp_dat_all = comp_dat_all, 
+                                                      theta = pert_both, 
+                                                      gamma = pl_params$gamma, 
+                                                      p = pl_params$p_at_conv)
+          
+          if (l == k)
+          {
+            I_theta[l,k] <- od_loglik_pert_both - 2*od_loglik_pert_k + od_loglik_theta
+          } else
+          {
+            pl_params <- profile_out(theta = pert_l, 
+                                     n_v = n_v, n = n, 
+                                     Y_unval=Y_unval, Y_val=Y_val, 
+                                     X_unval=X_unval, X_val=X_val, 
+                                     C=C, Bspline=Bspline, 
+                                     comp_dat_all = comp_dat_all, 
+                                     comp_dat_unval = comp_dat_unval, 
+                                     gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
+                                     newton_step_scale = newton_step_scale)
+            
+            od_loglik_pert_l <- observed_data_loglik(n = n, n_v = n_v, 
+                                                     Y_unval=Y_unval, Y_val=Y_val, 
+                                                     X_unval=X_unval, X_val=X_val, 
+                                                     C=C, Bspline=Bspline, 
+                                                     comp_dat_all = comp_dat_all, 
+                                                     theta = pert_l, 
+                                                     gamma = pl_params$gamma, 
+                                                     p =  pl_params$p_at_conv)
+            I_theta[k,l] <- I_theta[l,k] <- od_loglik_pert_both - od_loglik_pert_k - od_loglik_pert_l + od_loglik_theta # symmetry of covariance 
+          }
+        }
+      }
+      I_theta <- h_n^(-2) * I_theta
+      cov_theta <- -solve(I_theta)
+    }
     # ------------------------- Estimate Cov(theta) using profile likelihood
     
     return(list(Coefficients = data.frame(Coefficient = new_theta, 
                                           SE = sqrt(diag(cov_theta))),
+                h_n = h_n,
                 converged = CONVERGED,
-                converged_msg = ""))
+                converged_msg = CONVERGED_MSG,
+                initial_vals = initial_lr_params, 
+                iterations = it))
   }
 }
