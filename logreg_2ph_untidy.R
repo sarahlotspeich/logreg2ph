@@ -1,6 +1,6 @@
 #library(magrittr); library(tidyr); library(dplyr)
 
-profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Bspline=NULL, comp_dat_all, comp_dat_unval, gamma0, p0, p_val_num, newton_step_scale = 1, TOL = 1E-4, MAX_ITER = 500)
+profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Bspline=NULL, comp_dat_all, gamma0, p0, p_val_num, newton_step_scale = 1, TOL = 1E-4, MAX_ITER = 5000)
 {
   sn <- ncol(p0)
   m <- nrow(p0)
@@ -41,6 +41,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
     psi_t_num <- pY_X * pYstar * comp_dat_all[-c(1:n_v),Bspline] * pX
     psi_t_num_sumover_k_y <- rowsum(psi_t_num, group = rep(seq(1,(n-n_v)), times = 2*m))
     psi_t_num_sumover_k_y_j <- rowSums(psi_t_num_sumover_k_y)
+    psi_t_num_sumover_k_y_j[psi_t_num_sumover_k_y_j == 0] <- 1
     psi_t_denom <- matrix(rep(rep(psi_t_num_sumover_k_y_j, times = 2*m), sn), nrow = nrow(psi_t_num), ncol = ncol(psi_t_num), byrow = FALSE)
     psi_t <- psi_t_num/psi_t_denom
     ## ------------------- Update the psi_kyji for unvalidated subjects
@@ -77,6 +78,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
       suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
     # Check for convergence -----------------------------------------
+    #print(new_gamma)
     gamma_conv <- abs(new_gamma - prev_gamma)<TOL
     ## ---------------- Update gamma using weighted logistic regression
     ###################################################################
@@ -86,6 +88,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
       rowsum(u_t, group = rep(seq(1,m), each = (n-n_v)), reorder = TRUE)
     new_p <- t(t(new_p_num)/colSums(new_p_num))
     ### Check for convergence -----------------------------------------
+    #print(diag(new_p))
     p_conv <- abs(new_p - prev_p)<TOL
     ## -------------------------------------------------- Update {p_kj}
     ###################################################################
@@ -129,7 +132,6 @@ observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL,
   ## ----------------------------------------------- Sum over log[P(Yi*|Xi*,Yi,Xi)]
   #################################################################################
   ## Sum over I(Xi=xk)Bj(Xi*)log p_kj ---------------------------------------------
-  sn <- ncol(p)
   pX <- p[comp_dat_all[c(1:n_v),"k"],]
   log_pX <- log(pX)
   log_pX[log_pX == -Inf] <- 0
@@ -150,15 +152,13 @@ observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL,
   ## ------------------------------------ Calculate P(Yi*|Xi*,y,xk) for all (y,xk)
   ################################################################################
   ## Calculate Bj(Xi*) p_kj for all (k,j) ----------------------------------------
-  pX <- do.call(rbind, replicate(n = (n-n_v), expr = p, simplify = FALSE))
-  pX <- pX[order(rep(seq(1,m), times = (n-n_v))),]
-  pX <- rbind(pX, pX)
+  pX <- p[comp_dat_all[-c(1:n_v),"k"],]
   ## ---------------------------------------- Calculate Bj(Xi*) p_kj for all (k,j)
   ################################################################################
-  ## Calculate P(y|xk) x P(Y*|X*,y,xk) x Bj(X*) x q_kj ---------------------------
+  ## Calculate P(y|xk) x P(Y*|X*,y,xk) x Bj(X*) x p_kj ---------------------------
   person_sum <- rowsum(c(pY_X*pYstar)*comp_dat_all[-c(1:n_v),Bspline]*pX, group = rep(seq(1,(n-n_v)), times = 2*m))
+  person_sum <- rowSums(person_sum)
   log_person_sum <- log(person_sum)
-  log_person_sum[log_person_sum == -Inf] <- 0
   ## And sum over them all -------------------------------------------------------
   return_loglik <- return_loglik + sum(log_person_sum)
   ################################################################################
@@ -166,7 +166,7 @@ observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL,
   return(return_loglik)
 }
 
-TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero", h_n_scale = 1, newton_step_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL_theta = 1E-6, TOL_gamma = 1E-4, TOL_p = 1E-4, MAX_ITER = 1000)
+TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero", h_n_scale = 1, h_n_adapt = FALSE, newton_step_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL_theta = 1E-6, TOL_gamma = 1E-4, TOL_p = 1E-4, MAX_ITER = 1000)
 {
   n <- nrow(data)
   n_v <- sum(data[,Validated])
@@ -434,7 +434,6 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                X_unval=X_unval, X_val=X_val, 
                                C=C, Bspline=Bspline, 
                                comp_dat_all = comp_dat_all, 
-                               comp_dat_unval = comp_dat_unval, 
                                gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
                                newton_step_scale = newton_step_scale)
       od_loglik_pert_k <- observed_data_loglik(n = n, n_v = n_v, 
@@ -456,7 +455,6 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                  X_unval=X_unval, X_val=X_val, 
                                  C=C, Bspline=Bspline, 
                                  comp_dat_all = comp_dat_all, 
-                                 comp_dat_unval = comp_dat_unval, 
                                  gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
                                  newton_step_scale = newton_step_scale)
         
@@ -480,7 +478,6 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                    X_unval=X_unval, X_val=X_val, 
                                    C=C, Bspline=Bspline, 
                                    comp_dat_all = comp_dat_all, 
-                                   comp_dat_unval = comp_dat_unval, 
                                    gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
                                    newton_step_scale = newton_step_scale)
 
@@ -499,84 +496,84 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     I_theta <- h_n^(-2) * I_theta
     cov_theta <- -solve(I_theta)
     
-    while(NaN %in% suppressWarnings(sqrt(diag(cov_theta))))
+    if(h_n_adapt)
     {
-      h_n <- 1/2*h_n
-      
-      I_theta <- matrix(0, nrow = nrow(new_theta), ncol = nrow(new_theta))
-      for (k in 1:ncol(I_theta))
-      {
-        pert_k <- new_theta; pert_k[k] <- pert_k[k] + h_n
-        pl_params <- profile_out(theta = pert_k, 
-                                 n_v = n_v, n = n, 
-                                 Y_unval=Y_unval, Y_val=Y_val, 
-                                 X_unval=X_unval, X_val=X_val, 
-                                 C=C, Bspline=Bspline, 
-                                 comp_dat_all = comp_dat_all, 
-                                 comp_dat_unval = comp_dat_unval, 
-                                 gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
-                                 newton_step_scale = newton_step_scale)
-        od_loglik_pert_k <- observed_data_loglik(n = n, n_v = n_v, 
-                                                 Y_unval=Y_unval, Y_val=Y_val, 
-                                                 X_unval=X_unval, X_val=X_val, 
-                                                 C=C, Bspline=Bspline, 
-                                                 comp_dat_all = comp_dat_all, 
-                                                 theta = pert_k,
-                                                 gamma = pl_params$gamma, 
-                                                 p = pl_params$p_at_conv)
-        for (l in k:nrow(I_theta))
-        {
-          pert_l <- new_theta; pert_l[l] <- pert_l[l] + h_n
-          pert_both <- pert_l; pert_both[k] <- pert_both[k] + h_n
-          
-          pl_params <- profile_out(theta = pert_both, 
-                                   n_v = n_v, n = n, 
-                                   Y_unval=Y_unval, Y_val=Y_val, 
-                                   X_unval=X_unval, X_val=X_val, 
-                                   C=C, Bspline=Bspline, 
-                                   comp_dat_all = comp_dat_all, 
-                                   comp_dat_unval = comp_dat_unval, 
-                                   gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
-                                   newton_step_scale = newton_step_scale)
-          
-          od_loglik_pert_both <- observed_data_loglik(n = n, n_v = n_v, 
-                                                      Y_unval=Y_unval, Y_val=Y_val, 
-                                                      X_unval=X_unval, X_val=X_val, 
-                                                      C=C, Bspline=Bspline, 
-                                                      comp_dat_all = comp_dat_all, 
-                                                      theta = pert_both, 
-                                                      gamma = pl_params$gamma, 
-                                                      p = pl_params$p_at_conv)
-          
-          if (l == k)
-          {
-            I_theta[l,k] <- od_loglik_pert_both - 2*od_loglik_pert_k + od_loglik_theta
-          } else
-          {
-            pl_params <- profile_out(theta = pert_l, 
-                                     n_v = n_v, n = n, 
-                                     Y_unval=Y_unval, Y_val=Y_val, 
-                                     X_unval=X_unval, X_val=X_val, 
-                                     C=C, Bspline=Bspline, 
-                                     comp_dat_all = comp_dat_all, 
-                                     comp_dat_unval = comp_dat_unval, 
-                                     gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
-                                     newton_step_scale = newton_step_scale)
-            
-            od_loglik_pert_l <- observed_data_loglik(n = n, n_v = n_v, 
-                                                     Y_unval=Y_unval, Y_val=Y_val, 
-                                                     X_unval=X_unval, X_val=X_val, 
-                                                     C=C, Bspline=Bspline, 
-                                                     comp_dat_all = comp_dat_all, 
-                                                     theta = pert_l, 
-                                                     gamma = pl_params$gamma, 
-                                                     p =  pl_params$p_at_conv)
-            I_theta[k,l] <- I_theta[l,k] <- od_loglik_pert_both - od_loglik_pert_k - od_loglik_pert_l + od_loglik_theta # symmetry of covariance 
-          }
-        }
-      }
-      I_theta <- h_n^(-2) * I_theta
-      cov_theta <- -solve(I_theta)
+        while(NaN %in% suppressWarnings(sqrt(diag(cov_theta))))
+            {
+              h_n <- 1/2*h_n
+              
+              I_theta <- matrix(0, nrow = nrow(new_theta), ncol = nrow(new_theta))
+              for (k in 1:ncol(I_theta))
+              {
+                pert_k <- new_theta; pert_k[k] <- pert_k[k] + h_n
+                pl_params <- profile_out(theta = pert_k, 
+                                         n_v = n_v, n = n, 
+                                         Y_unval=Y_unval, Y_val=Y_val, 
+                                         X_unval=X_unval, X_val=X_val, 
+                                         C=C, Bspline=Bspline, 
+                                         comp_dat_all = comp_dat_all, 
+                                         gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
+                                         newton_step_scale = newton_step_scale)
+                od_loglik_pert_k <- observed_data_loglik(n = n, n_v = n_v, 
+                                                         Y_unval=Y_unval, Y_val=Y_val, 
+                                                         X_unval=X_unval, X_val=X_val, 
+                                                         C=C, Bspline=Bspline, 
+                                                         comp_dat_all = comp_dat_all, 
+                                                         theta = pert_k,
+                                                         gamma = pl_params$gamma, 
+                                                         p = pl_params$p_at_conv)
+                for (l in k:nrow(I_theta))
+                {
+                  pert_l <- new_theta; pert_l[l] <- pert_l[l] + h_n
+                  pert_both <- pert_l; pert_both[k] <- pert_both[k] + h_n
+                  
+                  pl_params <- profile_out(theta = pert_both, 
+                                           n_v = n_v, n = n, 
+                                           Y_unval=Y_unval, Y_val=Y_val, 
+                                           X_unval=X_unval, X_val=X_val, 
+                                           C=C, Bspline=Bspline, 
+                                           comp_dat_all = comp_dat_all, 
+                                           gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
+                                           newton_step_scale = newton_step_scale)
+                  
+                  od_loglik_pert_both <- observed_data_loglik(n = n, n_v = n_v, 
+                                                              Y_unval=Y_unval, Y_val=Y_val, 
+                                                              X_unval=X_unval, X_val=X_val, 
+                                                              C=C, Bspline=Bspline, 
+                                                              comp_dat_all = comp_dat_all, 
+                                                              theta = pert_both, 
+                                                              gamma = pl_params$gamma, 
+                                                              p = pl_params$p_at_conv)
+                  
+                  if (l == k)
+                  {
+                    I_theta[l,k] <- od_loglik_pert_both - 2*od_loglik_pert_k + od_loglik_theta
+                  } else
+                  {
+                    pl_params <- profile_out(theta = pert_l, 
+                                             n_v = n_v, n = n, 
+                                             Y_unval=Y_unval, Y_val=Y_val, 
+                                             X_unval=X_unval, X_val=X_val, 
+                                             C=C, Bspline=Bspline, 
+                                             comp_dat_all = comp_dat_all, 
+                                             gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
+                                             newton_step_scale = newton_step_scale)
+                    
+                    od_loglik_pert_l <- observed_data_loglik(n = n, n_v = n_v, 
+                                                             Y_unval=Y_unval, Y_val=Y_val, 
+                                                             X_unval=X_unval, X_val=X_val, 
+                                                             C=C, Bspline=Bspline, 
+                                                             comp_dat_all = comp_dat_all, 
+                                                             theta = pert_l, 
+                                                             gamma = pl_params$gamma, 
+                                                             p =  pl_params$p_at_conv)
+                    I_theta[k,l] <- I_theta[l,k] <- od_loglik_pert_both - od_loglik_pert_k - od_loglik_pert_l + od_loglik_theta # symmetry of covariance 
+                  }
+                }
+              }
+              I_theta <- h_n^(-2) * I_theta
+              cov_theta <- -solve(I_theta)
+            }        
     }
     # ------------------------- Estimate Cov(theta) using profile likelihood
     
