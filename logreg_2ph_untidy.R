@@ -281,6 +281,8 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     #### Then sum over the sn splines ---------------------------------
     #### Same ordering as psi_t_num_sumover_k_y, just only 1 column ---
     psi_t_num_sumover_k_y_j <- rowSums(psi_t_num_sumover_k_y)
+    #### Avoid NaN resulting from dividing by 0 -----------------------
+    psi_t_num_sumover_k_y_j[psi_t_num_sumover_k_y_j == 0] <- 1
     #### Replicate psi_t_num_sumover_k_y_j as the denominator ---------
     psi_t_denom <- matrix(rep(rep(psi_t_num_sumover_k_y_j, times = 2*m), sn), nrow = nrow(psi_t_num), ncol = ncol(psi_t_num), byrow = FALSE)
     ### And divide them! ----------------------------------------------
