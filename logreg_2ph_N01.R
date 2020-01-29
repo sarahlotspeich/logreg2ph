@@ -1,6 +1,4 @@
-#library(magrittr); library(tidyr); library(dplyr)
-
-profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Bspline=NULL, comp_dat_all, gamma0, p0, p_val_num, newton_step_scale = 1, TOL = 1E-4, MAX_ITER = 5000)
+profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Bspline=NULL, comp_dat_all, gamma0, p0, p_val_num, TOL = 1E-4, MAX_ITER = 5000)
 {
   sn <- ncol(p0)
   m <- nrow(p0)
@@ -70,7 +68,7 @@ profile_out <- function(theta, n_v, n, Y_unval=NULL, Y_val=NULL, X_unval=NULL, X
       hessian_gamma[l,] <- colSums(c(gamma_design_mat[,l])*gamma_design_mat*post_multiply)
     }
     
-    new_gamma <- tryCatch(expr = prev_gamma - newton_step_scale *solve(hessian_gamma) %*% gradient_gamma,
+    new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
                           error = function(err) {matrix(NA, nrow = nrow(prev_gamma))
                           })
     if (TRUE %in% is.na(new_gamma))
@@ -166,7 +164,7 @@ observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL,
   return(return_loglik)
 }
 
-TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero", h_n_scale = 1, h_n_adapt = FALSE, newton_step_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL_theta = 1E-6, TOL_gamma = 1E-4, TOL_p = 1E-4, MAX_ITER = 1000)
+TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero", h_n_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL = 1E-4, MAX_ITER = 1000)
 {
   n <- nrow(data)
   n_v <- sum(data[,Validated])
@@ -180,47 +178,29 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   {
     return(list(Coefficients = data.frame(Coefficient = NA, 
                                           SE = NA),
+                h_n = NA,
                 converged = FALSE,
-                converged_msg = "Empty sieve in validated data."))
+                converged_msg = "Empty sieve in validated data.",
+                initial_vals = NA, 
+                iterations = 0))
   }
   # ------------------------------------------ Add the B spline basis
   
-  # Rescale parameters ----------------------------------------------
-  cd_params <- matrix(glm(formula = as.formula(paste0(Y_val, "~", paste(c(X_val, C), collapse = "+"))), family = "binomial", data = data.frame(data[c(1:n_v),]))$coefficients, ncol = 1)
-  save_rescale_params <- as.vector(rep(1,length(c(X_val, C))))
-  if(TRUE %in% abs(cd_params[-1]/cd_params[1]) < 0.1)
+  # Standardize X_val, X_unval and C to N(0,1) -------------------------------
+  ## Shift by the sample mean ---------------------------------------
+  re_shift <- c(0, as.numeric(colMeans(data[,c(X_val, X_unval, C)], na.rm = TRUE)))
+  ## Scale inversely by sample standard deviation -------------------
+  re_scale <- c(1, as.numeric(apply(data[,c(X_val, X_unval, C)], MARGIN = 2, FUN = sd, na.rm = TRUE)))
+  ## Create artificially scaled data set ----------------------------
+  re_data <- data
+  for (p in 1:length(c(X_val, X_unval, C)))
   {
-    for(p in which(abs(cd_params[-1]/cd_params[1]) < 0.1))
-    {
-      rescale_param <- 1
-      while(abs(cd_params[-1][p]/cd_params[1]) < 0.1)
-      {
-        rescale_dat <- data.frame(data[c(1:n_v),])
-        rescale_param <- rescale_param*0.9
-        rescale_dat[,c(X_val, C)[p]] <- rescale_param*rescale_dat[,c(X_val, C)[p]]
-        cd_params <- matrix(glm(formula = as.formula(paste0(Y_val, "~", paste(c(X_val, C), collapse = "+"))), family = "binomial", data = rescale_dat)$coefficients, ncol = 1)
-        #print(rescale_param)
-      }
-      save_rescale_params[p] <- rescale_param
-    }
+    re_data[,c(X_val, X_unval, C)[p]] <- (re_data[,c(X_val, X_unval, C)[p]] - re_shift[p+1])/re_scale[p+1]
   }
-  
-  rescaled_data <- data
-  if(mean(save_rescale_params == 1) != 1)
-  {
-    for (p in 1:length(save_rescale_params))
-    {
-      rs <- save_rescale_params[p]
-      if(rs != 1)
-      {
-        rescaled_data[,c(X_val,C)[p]] <- rs*data[,c(X_val,C)[p]]
-        rescaled_data[,c(X_unval,C)[p]] <- rs*data[,c(X_unval,C)[p]]
-      }
-    }
-  }
+  # ------------------------------- Standardize X_val, X_unval and C to N(0,1)
   
   # Save distinct X -------------------------------------------------
-  x_obs <- data.frame(unique(rescaled_data[1:n_v,c(X_val)]))
+  x_obs <- data.frame(unique(re_data[1:n_v,c(X_val)]))
   x_obs <- data.frame(x_obs[order(x_obs[,1]),])
   colnames(x_obs) <- c(X_val)
   m <- nrow(x_obs)
@@ -230,13 +210,13 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   #suppressMessages(data %<>% dplyr::left_join(data.frame(x_k, k = 1:m)))
   
   # Save static (X*,Y*,X,Y,C) since they don't change ---------------
-  comp_dat_val <- rescaled_data[c(1:n_v),c(Y_unval, X_unval, C, Bspline, X_val, Y_val)]
+  comp_dat_val <- re_data[c(1:n_v),c(Y_unval, X_unval, C, Bspline, X_val, Y_val)]
   comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
   comp_dat_val <- comp_dat_val[,c(Y_unval, X_unval, C, Bspline, X_val, Y_val, "k")]
   comp_dat_val <- data.matrix(comp_dat_val)
   # 2 (m x n)xd matrices (y=0/y=1) of each (one column per person, --
   # one row per x) --------------------------------------------------
-  suppressWarnings(comp_dat_unval <- cbind(rescaled_data[-c(1:n_v),c(Y_unval, X_unval, C, Bspline)],
+  suppressWarnings(comp_dat_unval <- cbind(re_data[-c(1:n_v),c(Y_unval, X_unval, C, Bspline)],
                                            x_obs_stacked))
   comp_dat_y0 <- data.frame(comp_dat_unval, Y = 0)
   comp_dat_y1 <- data.frame(comp_dat_unval, Y = 1)
@@ -247,6 +227,10 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
   # Initialize parameter values -------------------------------------
   ## theta, gamma ---------------------------------------------------
+  if(!(initial_lr_params %in% c("Zero", "Complete-data", "Naive")))
+  {
+    initial_lr_params <- "Zero"
+  }
   if(initial_lr_params == "Zero")
   {
     num_pred <- length(X_val) + length(C) #preds in analysis model --
@@ -268,6 +252,14 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   theta_design_mat <- cbind(int = 1, comp_dat_all[,c(X_val,C)])
   gamma_formula <- as.formula(paste0(Y_unval, "~", paste(c(X_unval, Y_val, X_val, C), collapse = "+")))
   gamma_design_mat <- cbind(int = 1, comp_dat_all[,c(X_unval, Y_val, X_val, C)])
+  
+  # Standardize Y_val in gamma_design_mat to N(0,1) -------------------------------
+  ## Shift by the sample mean ---------------------------------------
+  ## Scale inversely by sample standard deviation -------------------
+  ## Create artificially scaled data set ----------------------------
+  gamma_design_mat[,Y_val] <- (gamma_design_mat[,Y_val] - mean(gamma_design_mat[,Y_val]))/sd(gamma_design_mat[,Y_val])
+  # -------------------------------  Standardize Y_val in gamma_design_mat to N(0,1)
+  
   # If unvalidated variable was left blank, assume error-free -------
   ## Need to write simplification here 
   
@@ -362,7 +354,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
       hessian_theta[l,] <- colSums(c(w_t*theta_design_mat[,l])*theta_design_mat*post_multiply)
     }
     
-    new_theta <- tryCatch(expr = prev_theta - newton_step_scale*solve(hessian_theta) %*% gradient_theta,
+    new_theta <- tryCatch(expr = prev_theta - solve(hessian_theta) %*% gradient_theta,
                           error = function(err) {matrix(NA, nrow = nrow(prev_theta))
                           })
     if (TRUE %in% is.na(new_theta))
@@ -371,7 +363,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     }
     if(VERBOSE) print(new_theta)
     ### Check for convergence -----------------------------------------
-    theta_conv <- abs(new_theta - prev_theta)<TOL_theta
+    theta_conv <- abs(new_theta - prev_theta)<TOL
     ## --------------------------------------------------- Update theta
     ###################################################################
     ## Update gamma using weighted logistic regression ----------------
@@ -386,7 +378,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
       hessian_gamma[l,] <- colSums(c(gamma_design_mat[,l])*gamma_design_mat*post_multiply)
     }
     
-    new_gamma <- tryCatch(expr = prev_gamma - newton_step_scale *solve(hessian_gamma) %*% gradient_gamma,
+    new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
                           error = function(err) {matrix(NA, nrow = nrow(prev_gamma))
                           })
     if (TRUE %in% is.na(new_gamma))
@@ -395,7 +387,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     }
     #if(VERBOSE) print(new_gamma)
     # Check for convergence -----------------------------------------
-    gamma_conv <- abs(new_gamma - prev_gamma)<TOL_gamma
+    gamma_conv <- abs(new_gamma - prev_gamma)<TOL
     ## ---------------- Update gamma using weighted logistic regression
     ###################################################################
     ## Update {p_kj} --------------------------------------------------
@@ -405,7 +397,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     new_p <- t(t(new_p_num)/colSums(new_p_num))
     #if(VERBOSE) print(new_p[1,])
     ### Check for convergence -----------------------------------------
-    p_conv <- abs(new_p - prev_p)<TOL_p
+    p_conv <- abs(new_p - prev_p)<TOL
     ## -------------------------------------------------- Update {p_kj}
     ###################################################################
     # M Step ----------------------------------------------------------
@@ -436,13 +428,27 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   # ---------------------------------------------- Estimate theta using EM
   if(noSE | !CONVERGED)
   {
+    ## Calculate pl(theta) -------------------------------------------------
+    od_loglik_theta <- observed_data_loglik(n = n, n_v = n_v, 
+                                            Y_unval=Y_unval, Y_val=Y_val, 
+                                            X_unval=X_unval, X_val=X_val, 
+                                            C=C, Bspline=Bspline, 
+                                            comp_dat_all = comp_dat_all, 
+                                            theta = new_theta,
+                                            gamma = new_gamma, 
+                                            p = new_p)
+    
     rownames(new_theta) <- c("Intercept", X_val, C)
-    new_theta <- new_theta*c(1,save_rescale_params)
-    return(list(Coefficients = data.frame(Coefficient = new_theta, 
+    re_theta <- new_theta
+    re_theta[c(2:(1+length(c(X_val,C))))] <- re_theta[c(2:(1+length(c(X_val,C))))]/re_scale[c(2:(1+length(c(X_val,C))))]
+    re_theta[1] <- re_theta[1] - sum(re_theta[c(2:(1+length(c(X_val,C))))]*re_shift[c(2:(1+length(c(X_val,C))))])
+    
+    return(list(Coefficients = data.frame(Coefficient = re_theta, 
                                           SE = NA),
+                h_n = NA,
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
-                h_n = NA,
+                od_loglik_at_conv = od_loglik_theta,
                 initial_vals = initial_lr_params, 
                 iterations = it))
   } else
@@ -471,8 +477,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                X_unval=X_unval, X_val=X_val, 
                                C=C, Bspline=Bspline, 
                                comp_dat_all = comp_dat_all, 
-                               gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
-                               newton_step_scale = newton_step_scale)
+                               gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num)
       od_loglik_pert_k <- observed_data_loglik(n = n, n_v = n_v, 
                                                Y_unval=Y_unval, Y_val=Y_val, 
                                                X_unval=X_unval, X_val=X_val, 
@@ -492,8 +497,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                  X_unval=X_unval, X_val=X_val, 
                                  C=C, Bspline=Bspline, 
                                  comp_dat_all = comp_dat_all, 
-                                 gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
-                                 newton_step_scale = newton_step_scale)
+                                 gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num)
         
         od_loglik_pert_both <- observed_data_loglik(n = n, n_v = n_v, 
                                                     Y_unval=Y_unval, Y_val=Y_val, 
@@ -515,8 +519,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                    X_unval=X_unval, X_val=X_val, 
                                    C=C, Bspline=Bspline, 
                                    comp_dat_all = comp_dat_all, 
-                                   gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num,
-                                   newton_step_scale = newton_step_scale)
+                                   gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num)
 
           od_loglik_pert_l <- observed_data_loglik(n = n, n_v = n_v, 
                                                    Y_unval=Y_unval, Y_val=Y_val, 
@@ -533,13 +536,36 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     I_theta <- h_n^(-2) * I_theta
     cov_theta <- -solve(I_theta)
     # ------------------------- Estimate Cov(theta) using profile likelihood
-    new_theta <- new_theta*c(1,save_rescale_params)
-    se_theta <- sqrt(diag(cov_theta))*c(1,save_rescale_params)
-    return(list(Coefficients = data.frame(Coefficient = new_theta, 
-                                          SE = se_theta),
+    # Scale everything back ------------------------------------------------
+    re_theta <- new_theta
+    re_theta[c(2:(1+length(c(X_val,C))))] <- re_theta[c(2:(1+length(c(X_val,C))))]/re_scale[c(2:(1+length(c(X_val,C))))]
+    re_theta[1] <- re_theta[1] - sum(re_theta[c(2:(1+length(c(X_val,C))))]*re_shift[c(2:(1+length(c(X_val,C))))])
+    
+    re_se_theta <- sqrt(diag(cov_theta))
+    re_se_theta[c(2:(1+length(c(X_val,C))))] <- re_se_theta[c(2:(1+length(c(X_val,C))))]/re_scale[c(2:(1+length(c(X_val,C))))]
+    re_se_theta[1] <- cov_theta[1,1] + sum(diag(cov_theta)[c(2:(1+length(c(X_val,C))))]*(re_shift[c(2:(1+length(c(X_val,C))))]/re_scale[c(2:(1+length(c(X_val,C))))])^2)
+    for (p1 in 1:ncol(cov_theta))
+    {
+      for (p2 in p1:ncol(cov_theta))
+      {
+        if(p1 < p2 & p1 == 1)
+        {
+          re_se_theta[1] <- re_se_theta[1] - (re_shift[p2]/re_scale[p2])*cov_theta[p1,p2]
+        }
+        if(p1 < p2 & p1 > 1)
+        {
+          re_se_theta[1] <- re_se_theta[1] + (re_shift[p1]/re_scale[p1])*(re_shift[p2]/re_scale[p2])*cov_theta[p1,p2]
+        }
+      }
+    }
+    re_se_theta[1] <- sqrt(re_se_theta[1])
+    # ------------------------------------------------ Scale everything back
+    return(list(Coefficients = data.frame(Coefficient = re_theta, 
+                                          SE = re_se_theta),
                 h_n = h_n,
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
+                od_loglik_at_conv = od_loglik_theta,
                 initial_vals = initial_lr_params, 
                 iterations = it))
   }
