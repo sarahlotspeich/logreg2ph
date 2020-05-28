@@ -163,6 +163,7 @@ observed_data_loglik <- function(n, n_v, Y_unval=NULL, Y_val=NULL, X_unval=NULL,
   person_sum <- rowsum(c(pY_X*pYstar)*comp_dat_all[-c(1:n_v),Bspline]*pX, group = rep(seq(1,(n-n_v)), times = 2*m))
   person_sum <- rowSums(person_sum)
   log_person_sum <- log(person_sum)
+  log_person_sum[log_person_sum == -Inf] <- 0
   ## And sum over them all -------------------------------------------------------
   return_loglik <- return_loglik + sum(log_person_sum)
   ################################################################################
@@ -205,11 +206,22 @@ pl_theta <- function(k, theta, h_n, n_v, n, Y_unval, Y_val, X_unval, X_val, X_va
 
 TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, C=NULL, interact = NULL,
                             Validated = NULL, Bspline=NULL, data, initial_lr_params = "Zero",
-                            h_n_scale = 1, noSE=FALSE, VERBOSE = FALSE, TOL = 1E-4, MAX_ITER = 1000,
+                            h_n_scale = NULL, noSE=FALSE, VERBOSE = FALSE, TOL = 1E-4, MAX_ITER = 1000,
                             rescale = FALSE)
 {
   n <- nrow(data)
   n_v <- sum(data[,Validated])
+  
+  if(is.null(h_n_scale))
+  {
+      if(rescale)
+      {
+          h_n_scale <- 4
+      } else
+      {
+          h_n_scale <- 1
+      }
+  }
   
   # Reorder so that the n_v validated subjects are first ------------
   data <- data[order(as.numeric(data[,Validated]), decreasing = TRUE),]
@@ -218,11 +230,13 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   sn <- ncol(data[,Bspline])
   if(0 %in% colSums(data[c(1:n_v),Bspline]))
   {
+    warning("Empty sieve in validated data. Reconstruct B-spline basis and try again.", call. = FALSE)
+    
     return(list(Coefficients = data.frame(Coefficient = NA, 
                                           SE = NA),
                 h_n = NA,
                 converged = FALSE,
-                converged_msg = "Empty sieve in validated data.",
+                converged_msg = "B-spline error",
                 initial_vals = NA, 
                 iterations = 0))
   }
@@ -310,8 +324,9 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
   
   # Initialize parameter values -------------------------------------
   ## theta, gamma ---------------------------------------------------
-  if(!(initial_lr_params %in% c("Zero", "Complete-data", "Naive")))
+  if(!(initial_lr_params %in% c("Zero", "Complete-data")))
   {
+    message("Invalid starting values provided. Non-informative zeros assumed.")
     initial_lr_params <- "Zero"
   }
   if(initial_lr_params == "Zero")
@@ -320,11 +335,11 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     prev_theta <- theta0 <- matrix(0, nrow = ncol(theta_design_mat), ncol = 1)
     prev_gamma <- gamma0 <- matrix(0, nrow = ncol(gamma_design_mat), ncol = 1)
   }
-  # if(initial_lr_params == "Complete-data")
-  # {
-  #   prev_theta <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_val, "~", paste(c(X_val, C), collapse = "+"))), family = "binomial", data = data.frame(rescaled_data[c(1:n_v),]))$coefficients, ncol = 1)
-  #   prev_gamma <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, Y_val, X_val, C), collapse = "+"))), family = "binomial", data = data.frame(rescaled_data[c(1:n_v),]))$coefficient, ncol = 1)
-  # }
+  if(initial_lr_params == "Complete-data")
+  {
+    prev_theta <- theta0 <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(re_data[c(1:n_v),]))$coefficients, ncol = 1)
+    prev_gamma <- gamma0 <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(re_data[c(1:n_v),]))$coefficient, ncol = 1)
+  }
   # if(initial_lr_params == "Naive")
   # {
   #   prev_theta <- theta0 <- matrix(glm(formula = as.formula(paste0(Y_unval, "~", paste(c(X_unval, C), collapse = "+"))), family = "binomial", data = data.frame(rescaled_data[c(1:n_v),]))$coefficients, ncol = 1)
@@ -425,7 +440,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     {
       suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
-    if(VERBOSE) print(new_theta)
+    #if(VERBOSE) print(new_theta)
     ### Check for convergence -----------------------------------------
     theta_conv <- abs(new_theta - prev_theta)<TOL
     ## --------------------------------------------------- Update theta
@@ -467,17 +482,38 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     if (mean(all_conv) == 1) CONVERGED <- TRUE
     
     it <- it + 1
-
+    
+    max_tol_theta = max(abs(new_theta - prev_theta))
+    max_tol_gamma = max(abs(new_gamma - prev_gamma))
+    max_tol_p = max(abs(new_p - prev_p))
+    
     # Update values for next iteration  -------------------------------
     prev_theta <- new_theta
     prev_gamma <- new_gamma
     prev_p <- new_p 
   }
   
-  if(!CONVERGED & it > MAX_ITER) 
+  if(!CONVERGED) 
   {
-    CONVERGED_MSG = "MAX_ITER reached"
-    new_theta <- matrix(NA, nrow = nrow(prev_theta))
+    if(it > MAX_ITER)
+    {
+        CONVERGED_MSG = "MAX_ITER reached"
+    }
+    return(list(Coefficients = data.frame(Coefficient = matrix(NA, nrow = nrow(prev_theta)), 
+                                          SE = NA),
+                h_n = NA,
+                converged = CONVERGED,
+                converged_msg = CONVERGED_MSG,
+                max_tol_theta = max_tol_theta,
+                max_tol_gamma = max_tol_gamma,
+                max_tol_p = max_tol_p,
+                #gamma_at_conv = re_gamma, 
+                #p_at_conv = new_p,
+                od_loglik_at_conv = NA,
+                initial_vals = initial_lr_params, 
+                iterations = it))
+    
+    #new_theta <- matrix(NA, nrow = nrow(prev_theta))
   }
   if(CONVERGED)
   {
@@ -485,7 +521,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     print(paste("SMLE converged after", it, "iterations", sep = " "))
   }
   # ---------------------------------------------- Estimate theta using EM
-  if(noSE | !CONVERGED)
+  if(noSE)
   {
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik(n = n, n_v = n_v,
@@ -516,8 +552,11 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                 h_n = NA,
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
-                gamma_at_conv = re_gamma, 
-                p_at_conv = new_p,
+                max_tol_theta = max(abs(new_theta - prev_theta)),
+                max_tol_gamma = max(abs(new_gamma - prev_gamma)),
+                max_tol_p = max(abs(new_p - prev_p)),
+                #gamma_at_conv = re_gamma, 
+                #p_at_conv = new_p,
                 od_loglik_at_conv = od_loglik_theta,
                 initial_vals = initial_lr_params, 
                 iterations = it))
@@ -610,7 +649,7 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
                 gamma_at_conv = re_gamma, 
-                p_at_conv = new_p,
+                #p_at_conv = new_p,
                 od_loglik_at_conv = od_loglik_theta,
                 initial_vals = initial_lr_params, 
                 iterations = it))
