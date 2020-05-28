@@ -504,21 +504,19 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                 h_n = NA,
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
-                max_tol_theta = max_tol_theta,
-                max_tol_gamma = max_tol_gamma,
-                max_tol_p = max_tol_p,
+                iterations = it,
+                #max_tol_theta = max_tol_theta,
+                #max_tol_gamma = max_tol_gamma,
+                #max_tol_p = max_tol_p,
                 #gamma_at_conv = re_gamma, 
                 #p_at_conv = new_p,
                 od_loglik_at_conv = NA,
-                initial_vals = initial_lr_params, 
-                iterations = it))
-    
-    #new_theta <- matrix(NA, nrow = nrow(prev_theta))
+                initial_vals = initial_lr_params))
   }
   if(CONVERGED)
   {
     CONVERGED_MSG <- "Converged"
-    print(paste("SMLE converged after", it, "iterations", sep = " "))
+    #print(paste("SMLE converged after", it, "iterations", sep = " "))
   }
   # ---------------------------------------------- Estimate theta using EM
   if(noSE)
@@ -551,15 +549,15 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                                           SE = NA),
                 h_n = NA,
                 converged = CONVERGED,
-                converged_msg = CONVERGED_MSG,
-                max_tol_theta = max(abs(new_theta - prev_theta)),
-                max_tol_gamma = max(abs(new_gamma - prev_gamma)),
-                max_tol_p = max(abs(new_p - prev_p)),
-                #gamma_at_conv = re_gamma, 
-                #p_at_conv = new_p,
+                converged_msg = CONVERGED_MSG,, 
+                iterations = it
+                #max_tol_theta = max(abs(new_theta - prev_theta)),
+                #max_tol_gamma = max(abs(new_gamma - prev_gamma)),
+                #max_tol_p = max(abs(new_p - prev_p)),
+                gamma_at_conv = re_gamma, 
+                p_at_conv = new_p,
                 od_loglik_at_conv = od_loglik_theta,
-                initial_vals = initial_lr_params, 
-                iterations = it))
+                initial_vals = initial_lr_params))
   } else
   {
     rownames(new_theta) <- c("Intercept", colnames(theta_design_mat)[-1])
@@ -605,12 +603,21 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
     }
 
     I_theta <- h_n^(-2) * I_theta
+    
+    tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
+             error = function(err) {matrix(NA, nrow = nrow(prev_gamma))
+             })
     cov_theta <- -solve(I_theta)
     # ------------------------- Estimate Cov(theta) using profile likelihood
     # Scale everything back ------------------------------------------------
     re_theta <- new_theta
-    re_se_theta <- sqrt(diag(cov_theta))
-    
+    if(TRUE %in% (diag(cov_theta) < 0))
+    {
+      warning("Negative variance estimate. Increase the h_n_scale parameter and repeat variance estimation.")
+      SE_cov <- FALSE
+    }
+    re_se_theta <- tryCatch(expr = sqrt(diag(cov_theta)), 
+                            warning = function(w) {matrix(NA, nrow = nrow(prev_theta))}) 
     re_gamma <- new_gamma
     
     if(rescale)
@@ -639,8 +646,6 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
       re_gamma[c(2:(1+length(c(X_val,C))))] <- re_gamma[c(2:(1+length(c(X_val,C))))]/re_scale[c(2:(1+length(c(X_val,C))))]
       re_gamma[1] <- re_gamma[1] - sum(re_gamma[c(2:(1+length(c(X_val,C))))]*re_shift[c(2:(1+length(c(X_val,C))))])
     }
-    
-    
   # ------------------------------------------------ Scale everything back
     return(list(Coefficients = data.frame(Coefficient = re_theta, 
                                           SE = re_se_theta),
@@ -648,10 +653,10 @@ TwoPhase_LogReg <- function(Y_unval=NULL, Y_val=NULL, X_unval=NULL, X_val=NULL, 
                 I_theta = I_theta,
                 converged = CONVERGED,
                 converged_msg = CONVERGED_MSG,
+                iterations = it,
                 gamma_at_conv = re_gamma, 
-                #p_at_conv = new_p,
+                p_at_conv = new_p,
                 od_loglik_at_conv = od_loglik_theta,
-                initial_vals = initial_lr_params, 
-                iterations = it))
+                initial_vals = initial_lr_params))
   }
 }
