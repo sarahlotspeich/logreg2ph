@@ -533,7 +533,7 @@ logreg_2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NUL
       pert_theta <- new_theta; pert_theta[c] <- pert_theta[c] + h_n
       double_pert_theta <- sapply(X = seq(c,ncol(I_theta)), FUN = pl_theta, theta = pert_theta, h_n = h_n, n_v = n_v, n = n, 
                                   Y_unval=Y_unval, Y_val=Y_val, X_unval=X_unval, X_val=X_val, C=C, Bspline=Bspline, 
-                                  comp_dat_all = comp_dat_all, gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num, MAX_ITER = MAX_ITER, TOL = TOL)
+                                  comp_dat_all = comp_dat_all, gamma0 = new_gamma, p0 = new_p, p_val_num = p_val_num)
       dpt <- matrix(0, nrow = nrow(I_theta), ncol = ncol(I_theta))
       dpt[c,c] <- double_pert_theta[1] #Put double on the diagonal 
       if(c < ncol(I_theta)) {
