@@ -1,8 +1,8 @@
 ###########################################################
-# Simulation setup for Tables 2/3 -------------------------
+# Simulation setup for Tables 4 ---------------------------
 # Errors in binary outcome, -------------------------------
 # Continuous covariate (additive)--------------------------
-# Varied covariate error variance -------------------------
+# Varied outcome error rates ------------------------------
 ###########################################################
 
 set.seed(918)
@@ -30,7 +30,7 @@ U <- rnorm(n = N, mean = muU, sd = sqrt(sU))
 Xstar <- X + U
 
 # Parameters for error model P(Y*|X*,Y,X,Z) ---------------
-## Set sensitivity/specificity of Y* = 0.95, 0.90 ---------
+## Set sensitivity/specificity of Y* ----------------------
 sensY <- 0.95; specY <- 0.90
 theta0 <- - log(specY / (1 - specY))
 theta1 <- - theta0 - log((1 - sensY) / sensY)
@@ -77,10 +77,9 @@ ht <- glm(Y[V] ~ X[V] + Z[V], family = "binomial", data = sdat,
 beta_ht <- ht$coefficients[2]
 se_ht <- sqrt(diag(sandwich::sandwich(ht)))[2] 
 
-## (4) SMLE ------------------------------------------------
+## (3) SMLE ------------------------------------------------
 ### Construct B-spline basis -------------------------------
-### We chose cubic B-splines, ------------------------------
-### with 20 df for N = 1000 and 24 df for N = 2000 ---------
+### We chose cubic B-splines, with 20 df for N = 1000 ------
 nsieve <- 20
 B <- matrix(0, nrow = N, ncol = nsieve)
 B[which(Z == 0),1:(0.75 * nsieve)] <- splines::bs(x = Xstar[which(Z == 0)], df = 0.75 * nsieve, Boundary.knots = range(Xstar[which(Z == 0)]), intercept = TRUE)
