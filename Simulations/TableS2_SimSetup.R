@@ -17,8 +17,7 @@ beta0 <- -1; beta1 <- 1; beta2 <- -0.5
 # Generate true values Y, X, Z ----------------------------
 Z <- rbinom(n = N, size = 1, 
             prob = 0.25)
-X <- rbinom(n = N, size = 1, 
-            prob = (1 + exp(- (0))) ^ (- 1))
+X <- rnorm(n = N, mean = 0, sd = 1)
 Y <- rbinom(n = N, size = 1, 
             prob = (1 + exp(-(beta0 + beta1 * X + beta2 * Z))) ^ (- 1))
 
