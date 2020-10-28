@@ -1,11 +1,11 @@
-Package: logreg2ph
-Title: What the Package Does (One Line, Title Case)
+Package: logreg_2ph
+Title: Implements Sieve Maximum Likelihood Estimation (SMLE) Approach for Two-Phase Logistic Regression
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+    person(given = "Sarah",
+           family = "Lotspeich",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
+           email = "sarah.c.lotspeich@vanderbilt.edu",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
 License: `use_mit_license()`, `use_gpl3_license()` or friends to
