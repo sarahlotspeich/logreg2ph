@@ -1,4 +1,4 @@
-Package: logreg_2ph
+Package: logreg2ph
 Title: Implements Sieve Maximum Likelihood Estimation (SMLE) Approach for Two-Phase Logistic Regression
 Version: 0.0.0.9000
 Authors@R: 
