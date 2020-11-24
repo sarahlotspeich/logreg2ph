@@ -48,9 +48,12 @@ logreg2ph(
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
 }
 \value{
-List containing (1) Coefficients: a dataframe with final coefficient and standard error estimates (where applicable), (2) converged: indicator of estimator convergence, (3) se_converged: indicator of standard error estimator convergence, (4) converged_msg: (where applicable) description of non-convergence, (5) iterations: number of iterations completed by EM algorithm
+\item{Coefficients}{A dataframe with final coefficient and standard error estimates (where applicable).}
+\item{converged}{indicator of EM algorithm convergence for parameter estimates.}
+\item{se_converged}{indicator of standard error estimate convergence.}
+\item{converged_msg}{(where applicable) description of non-convergence.}
+\item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
 }
 \description{
-This function returns the value of the observed-data log-likelihood (equation (2) in Lotspeich et al. (2020))
-for a given dataset and parameter values \code{theta}, \code{gamma}, and \code{p}.
+This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
 }
