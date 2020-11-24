@@ -48,7 +48,7 @@ logreg2ph(
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
 }
 \value{
-\item{Coefficients}{A dataframe with final coefficient and standard error estimates (where applicable).}
+\item{Coefficients}{dataframe with final coefficient and standard error estimates (where applicable).}
 \item{converged}{indicator of EM algorithm convergence for parameter estimates.}
 \item{se_converged}{indicator of standard error estimate convergence.}
 \item{converged_msg}{(where applicable) description of non-convergence.}
