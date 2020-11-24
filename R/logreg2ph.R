@@ -28,6 +28,8 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                        Validated = NULL, Bspline = NULL, data, initial_lr_params = "Zero",
                        h_n_scale = NULL, noSE = FALSE, TOL = 1E-4, MAX_ITER = 1000)
 {
+  rescale <- FALSE
+
   N <- nrow(data)
   n <- sum(data[, Validated])
 
