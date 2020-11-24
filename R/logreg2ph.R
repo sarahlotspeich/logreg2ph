@@ -1,7 +1,6 @@
 #' Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
 #'
-#' This function returns the value of the observed-data log-likelihood (equation (2) in Lotspeich et al. (2020))
-#' for a given dataset and parameter values `theta`, `gamma`, and `p`.
+#' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
 #
 #'
 #' @param Y_unval Column with the unvalidated outcome (can be name or numeric index)
