@@ -50,6 +50,16 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   }
   # ------------------------------------------ Add the B spline basis
 
+  if (is.null(theta_pred)) {
+    theta_pred <- c(X_val, C)
+    message("Analysis model assumed main effects only.")
+  }
+
+  if (is.null(gamma_pred)) {
+    gamma_pred <- c(X_unval, Y_val, X_val, C)
+    message("Outcome error model assumed main effects only.")
+  }
+
   # Save distinct X -------------------------------------------------
   x_obs <- data.frame(unique(data[1:n, c(X_val)]))
   x_obs <- data.frame(x_obs[order(x_obs[, 1]), ])
@@ -63,8 +73,9 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   # Save static (X*,Y*,X,Y,C) since they don't change ---------------
   comp_dat_val <- data[c(1:n), c(pred, Bspline)] # c(Y_unval, X_unval, C, Bspline, X_val, Y_val)
   comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
-  comp_dat_val <- comp_dat_val[, c(pred, "k")]
+  comp_dat_val <- comp_dat_val[, c(pred, Bspline, "k")]
   comp_dat_val <- data.matrix(comp_dat_val)
+
   # 2 (m x n)xd matrices (y=0/y=1) of each (one column per person, --
   # one row per x) --------------------------------------------------
   suppressWarnings(comp_dat_unval <- cbind(data[-c(1:n), c(setdiff(x = pred, y = c(Y_val, X_val)), Bspline)],
@@ -74,20 +85,13 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   colnames(comp_dat_y0)[length(colnames(comp_dat_y0))] <- colnames(comp_dat_y1)[length(colnames(comp_dat_y1))] <- Y_val
   comp_dat_unval <- data.matrix(cbind(rbind(comp_dat_y0, comp_dat_y1),
                                       k = rep(rep(seq(1, m), each = (N - n)), times = 2)))
+  comp_dat_unval <- comp_dat_unval[, c(pred, Bspline, "k")]
 
   comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
 
-  if (is.null(theta_pred)) {
-    theta_pred <- c(X_val, C)
-    message("Analysis model assumed main effects only.")
-  }
   theta_formula <- as.formula(paste0(Y_val, "~", paste(theta_pred, collapse = "+")))
   theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
 
-  if (is.null(gamma_pred)) {
-    gamma_pred <- c(X_unval, Y_val, X_val, C)
-    message("Outcome error model assumed main effects only.")
-  }
   gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
   gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
 
