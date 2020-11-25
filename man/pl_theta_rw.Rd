@@ -17,6 +17,8 @@ pl_theta_rw(
   C,
   Bspline,
   comp_dat_all,
+  theta_pred,
+  gamma_pred,
   gamma0,
   p0,
   p_val_num,
@@ -49,6 +51,10 @@ pl_theta_rw(
 
 \item{comp_dat_all}{Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)}
 
+\item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
+
+\item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
+
 \item{gamma0}{Starting values for \code{gamma}, the parameters for the outcome error model (a column vector)}
 
 \item{p0}{Starting values for \code{p}, the B-spline coefficients for the approximated covariate error model (a matrix)}
@@ -58,10 +64,6 @@ pl_theta_rw(
 \item{TOL}{Tolerance between iterations in the EM algorithm used to define convergence.}
 
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
-
-\item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
-
-\item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
 }
 \value{
 Profile likelihood for \code{theta} after perturbing element \code{k} by \code{h_N}.

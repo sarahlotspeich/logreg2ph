@@ -24,7 +24,8 @@
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
 #' @return Profile likelihood for `theta`: the value of the observed-data log-likelihood after profiling out other parameters.
 
-profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL, Bspline = NULL, comp_dat_all, theta_param, gamma_param, gamma0, p0, p_val_num, TOL, MAX_ITER) {
+profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL, Bspline = NULL,
+                           comp_dat_all, theta_pred, gamma_pred, gamma0, p0, p_val_num, TOL, MAX_ITER) {
   sn <- ncol(p0)
   m <- nrow(p0)
 
@@ -33,7 +34,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
 
   comp_dat_unval <- comp_dat_all[- c(1:n), ]
 
-  theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_param])
+  theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
 
   ### P(Y|X) --------------------------------------------------------
   y0 <-  comp_dat_unval[, Y_val] == 0
@@ -43,8 +44,8 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
   ### -------------------------------------------------------- P(Y|X)
 
   ystar0 <- comp_dat_unval[, Y_unval] == 0
-  gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_param, collapse = "+")))
-  gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_param])
+  gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
+  gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
 
   CONVERGED <- FALSE
   CONVERGED_MSG <- "SE not converged"

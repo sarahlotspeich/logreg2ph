@@ -277,7 +277,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
                                             gamma = new_gamma,
                                             p = new_p)
 
-    return(list(Coefficients = data.frame(Coefficient = theta,
+    return(list(Coefficients = data.frame(Coefficient = new_theta,
                                           SE = NA),
                 converged = CONVERGED,
                 se_converged = NA,
