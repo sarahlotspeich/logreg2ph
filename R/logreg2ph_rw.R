@@ -71,21 +71,21 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   pred <- unique(c(theta_pred, gamma_pred))
 
   # Save static (X*,Y*,X,Y,C) since they don't change ---------------
-  comp_dat_val <- data[c(1:n), c(pred, Bspline)] # c(Y_unval, X_unval, C, Bspline, X_val, Y_val)
+  comp_dat_val <- data[c(1:n), c(Y_unval, pred, Bspline)] # c(Y_unval, X_unval, C, Bspline, X_val, Y_val)
   comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
-  comp_dat_val <- comp_dat_val[, c(pred, Bspline, "k")]
+  comp_dat_val <- comp_dat_val[, c(Y_unval, pred, Bspline, "k")]
   comp_dat_val <- data.matrix(comp_dat_val)
 
   # 2 (m x n)xd matrices (y=0/y=1) of each (one column per person, --
   # one row per x) --------------------------------------------------
-  suppressWarnings(comp_dat_unval <- cbind(data[-c(1:n), c(setdiff(x = pred, y = c(Y_val, X_val)), Bspline)],
+  suppressWarnings(comp_dat_unval <- cbind(data[-c(1:n), c(Y_unval, setdiff(x = pred, y = c(Y_val, X_val)), Bspline)],
                                            x_obs_stacked))
   comp_dat_y0 <- data.frame(comp_dat_unval, Y = 0)
   comp_dat_y1 <- data.frame(comp_dat_unval, Y = 1)
   colnames(comp_dat_y0)[length(colnames(comp_dat_y0))] <- colnames(comp_dat_y1)[length(colnames(comp_dat_y1))] <- Y_val
   comp_dat_unval <- data.matrix(cbind(rbind(comp_dat_y0, comp_dat_y1),
                                       k = rep(rep(seq(1, m), each = (N - n)), times = 2)))
-  comp_dat_unval <- comp_dat_unval[, c(pred, Bspline, "k")]
+  comp_dat_unval <- comp_dat_unval[, c(Y_unval, pred, Bspline, "k")]
 
   comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
 
