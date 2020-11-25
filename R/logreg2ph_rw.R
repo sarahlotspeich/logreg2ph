@@ -259,7 +259,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
                 iterations = it,
                 od_loglik_at_conv = NA))
   }
-  rownames(new_theta) <- c("Intercept", gamma_theta)
+  rownames(new_theta) <- c("Intercept", theta_pred)
   rownames(new_gamma) <- c("Intercept", gamma_pred)
 
   if(CONVERGED) CONVERGED_MSG <- "Converged"
