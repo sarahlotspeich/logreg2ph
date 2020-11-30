@@ -61,15 +61,16 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   # ------------------------------------------ Add the B spline basis
 
   if (is.null(theta_pred)) {
-    theta_pred <- pred <- c(X_val, C)
+    theta_pred <- c(X_val, C)
     message("Analysis model assumed main effects only.")
   }
 
   if (is.null(gamma_pred) & errorsY) {
     gamma_pred <- c(X_unval, Y_val, X_val, C)
-    pred <- unique(c(theta_pred, gamma_pred))
     message("Outcome error model assumed main effects only.")
   }
+
+  pred <- unique(c(theta_pred, gamma_pred))
 
   if (errorsX) {
     # Save distinct X -------------------------------------------------
@@ -486,16 +487,16 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
                           }
     )
     # ------------------------- Estimate Cov(theta) using profile likelihood
-    if(any(diag(cov_theta) < 0)) {
-      warning("Negative variance estimate. Increase the h_N_scale parameter and repeat variance estimation.")
-      SE_CONVERGED <- FALSE
-    }
+    # if(any(diag(cov_theta) < 0)) {
+    #   warning("Negative variance estimate. Increase the h_N_scale parameter and repeat variance estimation.")
+    #   SE_CONVERGED <- FALSE
+    # }
     se_theta <- tryCatch(expr = sqrt(diag(cov_theta)),
                             warning = function(w) {
                               matrix(NA, nrow = nrow(prev_theta))
                             }
     )
-
+    if (any(is.na(se_theta))) { SE_CONVERGED <- FALSE} else { TRUE }
     return(list(Coefficients = data.frame(Coefficient = new_theta,
                                           SE = se_theta),
                 I_theta = I_theta,
