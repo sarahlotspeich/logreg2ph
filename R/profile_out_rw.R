@@ -193,8 +193,8 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
   }
   if(it == MAX_ITER & !CONVERGED) {
     CONVERGED_MSG <- "MAX_ITER reached"
-    new_gamma <- matrix(NA, nrow = nrow(new_gamma), ncol = 1)
-    new_p <- matrix(NA, nrow = nrow(new_p), ncol = ncol(new_p))
+    new_gamma <- matrix(NA, nrow = nrow(gamma0), ncol = 1)
+    new_p <- matrix(NA, nrow = nrow(p0), ncol = ncol(p0))
   }
   if(CONVERGED) CONVERGED_MSG <- "converged"
   if (!errorsY) { new_gamma <- NA }
