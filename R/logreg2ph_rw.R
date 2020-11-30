@@ -194,7 +194,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
 
     } else {
-      pYstar <- matrix(1, nrow(gamma_design_mat))
+      pYstar <- matrix(1, nrow(gamma_design_mat[-c(1:n), ]))
     }
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
