@@ -197,6 +197,8 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
     new_p <- matrix(NA, nrow = nrow(new_p), ncol = ncol(new_p))
   }
   if(CONVERGED) CONVERGED_MSG <- "converged"
+  if (!errorsY) { new_gamma <- NA }
+  if (!errorsX) { new_p <- NA }
   # ---------------------------------------------- Estimate theta using EM
   return(list("psi_at_conv" = psi_t,
               "gamma_at_conv" = new_gamma,
