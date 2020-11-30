@@ -151,7 +151,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
     gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
   } else {
-    gamma_design_mat <- matrix(1, nrow = nrow(comp_dat_all), ncol = 1)
+    gamma_design_mat <- matrix(1, nrow = nrow(comp_dat_all[-c(1:n), ]), ncol = 1)
   }
 
   # Initialize parameter values -------------------------------------
@@ -194,7 +194,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
 
     } else {
-      pYstar <- matrix(1, nrow(gamma_design_mat[-c(1:n), ]))
+      pYstar <- matrix(1, nrow = nrow(comp_dat_unval))
     }
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
@@ -210,7 +210,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
         ### p_kj ----------------------------------------------------------
         ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
         ### multiply by the B-spline terms
-        pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 1), ] * comp_dat_unval[, Bspline]
+        pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_unval[, Bspline]
         ### ---------------------------------------------------------- p_kj
       }
       ### ----------------------------------------------------- P(X|X*)
@@ -219,7 +219,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     ###################################################################
     ### Update numerator ----------------------------------------------
     ### P(Y|X,C)*P(Y*|X*,Y,X,C)p_kjB(X*) ------------------------------
-    psi_num <- pY_X * pYstar * pX
+    psi_num <- c(pY_X * pYstar) * pX
     ### Update denominator --------------------------------------------
     #### Sum up all rows per id (e.g. sum over xk/y) ------------------
     if (errorsY & errorsX) {
