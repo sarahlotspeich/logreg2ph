@@ -65,7 +65,7 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
     if (errorsY) {
       I_ystar0 <- comp_dat_unval[, Y_unval] == 0
       pYstar <- 1/(1 + exp(-as.numeric(gamma_design_mat[- c(1:n), ] %*% prev_gamma)))
-      pYstar[ystar0] <- 1 - pYstar[ystar0]
+      pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
 
     } else { pYstar <- rep(1, times = nrow(gamma_design_mat)) }
     ## --------------------------------------------------- P(Y*|X*,Y,X)
@@ -78,7 +78,7 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
         ### p_kj x the B-spline terms
         pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 1), ] * comp_dat_unval[, Bspline]
       }
-    } else { pX <- rep(1, times = nrow(comp_dat_all)) }
+    } else { pX <- rep(1, times = nrow(comp_dat_unval)) }
     ## -------------------------------------------------------- P(X|X*)
     ###################################################################
     ## Update the psi_kyji for unvalidated subjects -------------------
@@ -100,16 +100,25 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
     ### And divide them! ----------------------------------------------
     psi_t <- psi_num / psi_denom
     ## ------------------- Update the psi_kyji for unvalidated subjects
-    ## Update the w_kyi for unvalidated subjects ----------------------
-    ## by summing across the splines/ columns of psi_t ----------------
-    ## w_t is ordered by i = (N-n), ..., N ----------------------------
-    w_t <- rowSums(psi_t)
-    ## ---------------------- Update the w_kyi for unvalidated subjects
-    if (errorsY) {
+    if (errorsX) {
+      ## Update the w_kyi for unvalidated subjects --------------------
+      ## by summing across the splines/ columns of psi_t --------------
+      ## w_t is ordered by i = (N-n), ..., N --------------------------
+      w_t <- rowSums(psi_t)
+      ## -------------------- Update the w_kyi for unvalidated subjects
+      if (errorsY) {
+        ## Update the u_kji for unvalidated subjects ------------------
+        ## by summing over Y = 0/1 w/i each i, k ----------------------
+        ## add top half of psi_t (y = 0) to bottom half (y = 1) -------
+        u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[-c(1:(m * (N - n))), ]
+        ## ------------------ Update the u_kji for unvalidated subjects
+      }
+    } else if (errorsY) {
+      w_t <- psi_t
       ## Update the u_kji for unvalidated subjects --------------------
       ## by summing over Y = 0/1 w/i each i, k ------------------------
       ## add top half of psi_t (y = 0) to bottom half (y = 1) ---------
-      u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[-c(1:(m * (N - n))), ]
+      u_t <- psi_t[c(1:(N - n))] + psi_t[-c(1:(N - n))]
       ## -------------------- Update the u_kji for unvalidated subjects
     }
     ###################################################################

@@ -19,9 +19,9 @@ pl_theta_rw(
   comp_dat_all,
   theta_pred,
   gamma_pred,
-  gamma0,
-  p0,
-  p_val_num,
+  gamma0 = NULL,
+  p0 = NULL,
+  p_val_num = NULL,
   TOL,
   MAX_ITER
 )

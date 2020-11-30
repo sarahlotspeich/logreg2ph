@@ -86,7 +86,7 @@ observed_data_loglik_rw <- function(N, n, Y_unval = NULL, Y_val = NULL, X_unval 
   }
   ################################################################################
   ## Calculate sum of P(y|xk) x P(Y*|X*,y,xk) x Bj(X*) x p_kj --------------------
-  if (errorsY & errorX) {
+  if (errorsY & errorsX) {
     person_sum <- rowsum(c(pY_X * pYstar) * comp_dat_all[-c(1:n), Bspline] * pX, group = rep(seq(1, (N - n)), times = 2 * m))
   } else if (errorsY) {
     person_sum <- rowsum(c(pY_X * pYstar), group = rep(seq(1, (N - n)), times = 2))

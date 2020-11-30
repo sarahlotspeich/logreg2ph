@@ -213,7 +213,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
         ### ---------------------------------------------------------- p_kj
       }
       ### ----------------------------------------------------- P(X|X*)
-    } else { pX <- rep(1, times = nrow(comp_dat_all)) }
+    } else { pX <- rep(1, times = nrow(comp_dat_unval)) }
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
     ### Update numerator ----------------------------------------------
@@ -237,18 +237,26 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     psi_t <- psi_num / psi_denom
     ## ------------------- Update the psi_kyji for unvalidated subjects
     ###################################################################
-    ## Update the w_kyi for unvalidated subjects ----------------------
-    ## by summing across the splines/ columns of psi_t ----------------
-    ## w_t is ordered by i = (N-n), ..., N ----------------------------
-    w_t <- rowSums(psi_t)
-    ## ---------------------- Update the w_kyi for unvalidated subjects
-    ###################################################################
-    if (errorsY) {
-      ## Update the u_kji for unvalidated subjects ----------------------
-      ## by summing over Y = 0/1 w/i each i, k --------------------------
-      ## add top half of psi_t (y = 0) to bottom half (y = 1) -----------
-      u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[-c(1:(m * (N - n))), ]
-      ## ---------------------- Update the u_kji for unvalidated subjects
+    if (errorsX) {
+      ## Update the w_kyi for unvalidated subjects --------------------
+      ## by summing across the splines/ columns of psi_t --------------
+      ## w_t is ordered by i = (N-n), ..., N --------------------------
+      w_t <- rowSums(psi_t)
+      ## -------------------- Update the w_kyi for unvalidated subjects
+      if (errorsY) {
+        ## Update the u_kji for unvalidated subjects ------------------
+        ## by summing over Y = 0/1 w/i each i, k ----------------------
+        ## add top half of psi_t (y = 0) to bottom half (y = 1) -------
+        u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[-c(1:(m * (N - n))), ]
+        ## ------------------ Update the u_kji for unvalidated subjects
+      }
+    } else if (errorsY) {
+      w_t <- psi_t
+      ## Update the u_kji for unvalidated subjects --------------------
+      ## by summing over Y = 0/1 w/i each i, k ------------------------
+      ## add top half of psi_t (y = 0) to bottom half (y = 1) ---------
+      u_t <- psi_t[c(1:(N - n))] + psi_t[-c(1:(N - n))]
+      ## -------------------- Update the u_kji for unvalidated subjects
     }
     # ---------------------------------------------------------- E Step
     ###################################################################
@@ -345,6 +353,8 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   if(CONVERGED) CONVERGED_MSG <- "Converged"
   # ---------------------------------------------- Estimate theta using EM
   if(noSE) {
+    if (!errorsY) { new_gamma <- NULL }
+    if (!errorsX) { new_p <- NULL}
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik_rw(N = N,
                                                n = n,
@@ -372,6 +382,9 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     # Estimate Cov(theta) using profile likelihood -------------------------
     h_N <- h_N_scale * N ^ ( - 1 / 2) # perturbation ----------------------------
 
+    if (!errorsY) { new_gamma <- NULL }
+    if (!errorsX) { new_p <- NULL}
+
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik_rw(N = N,
                                             n = n,
@@ -389,6 +402,14 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
                                             p = new_p)
 
     I_theta <- matrix(od_loglik_theta, nrow = nrow(new_theta), ncol = nrow(new_theta))
+
+    if (!errorsX) {
+      new_p <- p_val_num <- matrix(NA, nrow = 1, ncol = 1)
+    }
+
+    if (!errorsY) {
+      new_gamma <- NA
+    }
 
     single_pert_theta <- sapply(X = seq(1, ncol(I_theta)),
                                 FUN = pl_theta_rw,
