@@ -248,16 +248,11 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
         ## Update the u_kji for unvalidated subjects ------------------
         ## by summing over Y = 0/1 w/i each i, k ----------------------
         ## add top half of psi_t (y = 0) to bottom half (y = 1) -------
-        u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[-c(1:(m * (N - n))), ]
+        u_t <- psi_t[c(1:(N - n))] + psi_t[-c(1:(N - n))]
         ## ------------------ Update the u_kji for unvalidated subjects
-      }
+      } else { u_t <- psi_t }
     } else if (errorsY) {
       w_t <- psi_t
-      ## Update the u_kji for unvalidated subjects --------------------
-      ## by summing over Y = 0/1 w/i each i, k ------------------------
-      ## add top half of psi_t (y = 0) to bottom half (y = 1) ---------
-      u_t <- psi_t[c(1:(N - n))] + psi_t[-c(1:(N - n))]
-      ## -------------------- Update the u_kji for unvalidated subjects
     }
     # ---------------------------------------------------------- E Step
     ###################################################################
