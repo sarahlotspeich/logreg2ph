@@ -165,7 +165,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     prev_gamma <- gamma0 <- matrix(0, nrow = ncol(gamma_design_mat), ncol = 1)
   } else if(initial_lr_params == "Complete-data") {
     prev_theta <- theta0 <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(data[c(1:n), ]))$coefficients, ncol = 1)
-    if (errors Y) {
+    if (errorsY) {
       prev_gamma <- gamma0 <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(data[c(1:n), ]))$coefficient, ncol = 1)
     }
   }

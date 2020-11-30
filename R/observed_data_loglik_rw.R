@@ -91,7 +91,7 @@ observed_data_loglik_rw <- function(N, n, Y_unval = NULL, Y_val = NULL, X_unval 
   } else if (errorsY) {
     person_sum <- rowsum(c(pY_X * pYstar), group = rep(seq(1, (N - n)), times = 2))
   } else if (errorsX) {
-    person_sum <- rowsum(c(pY_X * comp_dat_all[-c(1:n), Bspline] * pX, group = rep(seq(1, (N - n)), times = m))
+    person_sum <- rowsum(c(pY_X * comp_dat_all[-c(1:n), Bspline] * pX), group = rep(seq(1, (N - n)), times = m))
   }
   person_sum <- rowSums(person_sum)
   log_person_sum <- log(person_sum)
