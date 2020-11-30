@@ -102,20 +102,20 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
       comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
     } else {
       # Save static (X*,X,Y,C) since they don't change ---------------
-      comp_dat_val <- data[c(1:n), c(pred, Bspline)]
+      comp_dat_val <- data[c(1:n), c(Y_val, pred, Bspline)]
       comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
-      comp_dat_val <- comp_dat_val[, c(pred, Bspline, "k")]
+      comp_dat_val <- comp_dat_val[, c(Y_val, pred, Bspline, "k")]
       comp_dat_val <- data.matrix(comp_dat_val)
 
       # (m x n)xd vectors of each (one column per person, one row per x) --
       suppressWarnings(
         comp_dat_unval <- data.matrix(
-          cbind(data[-c(1:n), c(setdiff(x = pred, y = c(X_val)), Bspline)],
+          cbind(data[-c(1:n), c(Y_val, setdiff(x = pred, y = c(X_val)), Bspline)],
                 x_obs_stacked,
                 k = rep(seq(1, m), each = (N - n)))
           )
         )
-      comp_dat_unval <- comp_dat_unval[, c(pred, Bspline, "k")]
+      comp_dat_unval <- comp_dat_unval[, c(Y_val, pred, Bspline, "k")]
 
       comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
     }
