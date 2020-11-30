@@ -353,8 +353,13 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   if(CONVERGED) CONVERGED_MSG <- "Converged"
   # ---------------------------------------------- Estimate theta using EM
   if(noSE) {
-    if (!errorsY) { new_gamma <- NULL }
-    if (!errorsX) { new_p <- NULL}
+    if (!errorsX) {
+      new_p <- p_val_num <- matrix(NA, nrow = 1, ncol = 1)
+    }
+
+    if (!errorsY) {
+      new_gamma <- NA
+    }
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik_rw(N = N,
                                                n = n,
@@ -382,8 +387,13 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     # Estimate Cov(theta) using profile likelihood -------------------------
     h_N <- h_N_scale * N ^ ( - 1 / 2) # perturbation ----------------------------
 
-    if (!errorsY) { new_gamma <- NULL }
-    if (!errorsX) { new_p <- NULL}
+    if (!errorsX) {
+      new_p <- p_val_num <- matrix(NA, nrow = 1, ncol = 1)
+    }
+
+    if (!errorsY) {
+      new_gamma <- NA
+    }
 
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik_rw(N = N,
@@ -402,14 +412,6 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
                                             p = new_p)
 
     I_theta <- matrix(od_loglik_theta, nrow = nrow(new_theta), ncol = nrow(new_theta))
-
-    if (!errorsX) {
-      new_p <- p_val_num <- matrix(NA, nrow = 1, ncol = 1)
-    }
-
-    if (!errorsY) {
-      new_gamma <- NA
-    }
 
     single_pert_theta <- sapply(X = seq(1, ncol(I_theta)),
                                 FUN = pl_theta_rw,
