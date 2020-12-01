@@ -150,9 +150,9 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   if (errorsY) {
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
     gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
-  } else {
-    gamma_design_mat <- matrix(1, nrow = nrow(comp_dat_all[-c(1:n), ]), ncol = 1)
-  }
+  } #else {
+    #gamma_design_mat <- matrix(1, nrow = nrow(comp_dat_all[-c(1:n), ]), ncol = 1)
+  #}
 
   # Initialize parameter values -------------------------------------
   ## theta, gamma ---------------------------------------------------
@@ -248,7 +248,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
         ## Update the u_kji for unvalidated subjects ------------------
         ## by summing over Y = 0/1 w/i each i, k ----------------------
         ## add top half of psi_t (y = 0) to bottom half (y = 1) -------
-        u_t <- psi_t[c(1:(N - n))] + psi_t[-c(1:(N - n))]
+        u_t <- psi_t[c(1:(2*(N - n))), ] + psi_t[-c(1:(2*(N - n))), ]
         ## ------------------ Update the u_kji for unvalidated subjects
       } else { u_t <- psi_t }
     } else if (errorsY) {
