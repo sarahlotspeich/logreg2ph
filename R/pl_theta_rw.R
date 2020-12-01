@@ -10,7 +10,7 @@
 #' @param n Phase II sample size
 #' @param Y_unval Column with the unvalidated outcome (can be name or numeric index)
 #' @param Y_val Column with the validated outcome (can be name or numeric index)
-#' @param X_unval Column(s) with the unvalidated predictors (can be name or numeric index) 
+#' @param X_unval Column(s) with the unvalidated predictors (can be name or numeric index)
 #' @param X_val Column(s) with the validated predictors (can be name or numeric index)
 #' @param C (Optional) Column(s) with additional error-free covariates (can be name or numeric index)
 #' @param Bspline Vector of columns containing the B-spline basis functions (can be name or numeric index)

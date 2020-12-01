@@ -50,8 +50,11 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
   pY_X <- 1 / (1 + exp(- mu_theta))
   pY_X[I_y0] <- 1 - pY_X[I_y0]
   ### -------------------------------------------------------- P(Y|X)
-  gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
-  gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
+
+  if (errorsY) {
+    gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
+    gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
+  }
 
   CONVERGED <- FALSE
   CONVERGED_MSG <- "SE not converged"
@@ -67,7 +70,7 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
       pYstar <- 1/(1 + exp(-as.numeric(gamma_design_mat[- c(1:n), ] %*% prev_gamma)))
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
 
-    } else { pYstar <- rep(1, times = nrow(gamma_design_mat)) }
+    } else { pYstar <- rep(1, times = nrow(comp_dat_unval)) }
     ## --------------------------------------------------- P(Y*|X*,Y,X)
     ## P(X|X*) --------------------------------------------------------
     if (errorsX) {
