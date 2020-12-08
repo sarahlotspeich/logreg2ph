@@ -72,7 +72,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
 
   pred <- unique(c(theta_pred, gamma_pred))
 
-  if (errorsX) {
+  if (errorsX & errorsY) {
     # Save distinct X -------------------------------------------------
     x_obs <- data.frame(unique(data[1:n, c(X_val)]))
     x_obs <- data.frame(x_obs[order(x_obs[, 1]), ])
@@ -81,44 +81,57 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     x_obs_stacked <- data.frame(x_obs_stacked[order(x_obs_stacked[, 1]), ])
     colnames(x_obs) <- colnames(x_obs_stacked) <- c(X_val)
 
-    if (errorsY) {
-      # Save static (X*,Y*,X,Y,C) since they don't change ---------------
-      comp_dat_val <- data[c(1:n), c(Y_unval, pred, Bspline)] # c(Y_unval, X_unval, C, Bspline, X_val, Y_val)
-      comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
-      comp_dat_val <- comp_dat_val[, c(Y_unval, pred, Bspline, "k")]
-      comp_dat_val <- data.matrix(comp_dat_val)
+    # Save static (X*,Y*,X,Y,C) since they don't change ---------------
+    comp_dat_val <- data[c(1:n), c(Y_unval, pred, Bspline)] # c(Y_unval, X_unval, C, Bspline, X_val, Y_val)
+    comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
+    comp_dat_val <- comp_dat_val[, c(Y_unval, pred, Bspline, "k")]
+    comp_dat_val <- data.matrix(comp_dat_val)
 
-      # 2 (m x n)xd matrices (y=0/y=1) of each (one column per person, --
-      # one row per x) --------------------------------------------------
-      suppressWarnings(comp_dat_unval <- cbind(data[-c(1:n), c(Y_unval, setdiff(x = pred, y = c(Y_val, X_val)), Bspline)],
-                                               x_obs_stacked))
-      comp_dat_y0 <- data.frame(comp_dat_unval, Y = 0)
-      comp_dat_y1 <- data.frame(comp_dat_unval, Y = 1)
-      colnames(comp_dat_y0)[length(colnames(comp_dat_y0))] <- colnames(comp_dat_y1)[length(colnames(comp_dat_y1))] <- Y_val
-      comp_dat_unval <- data.matrix(cbind(rbind(comp_dat_y0, comp_dat_y1),
-                                          k = rep(rep(seq(1, m), each = (N - n)), times = 2)))
-      comp_dat_unval <- comp_dat_unval[, c(Y_unval, pred, Bspline, "k")]
+    # 2 (m x n)xd matrices (y=0/y=1) of each (one column per person, --
+    # one row per x) --------------------------------------------------
+    suppressWarnings(comp_dat_unval <- cbind(data[-c(1:n), c(Y_unval, setdiff(x = pred, y = c(Y_val, X_val)), Bspline)],
+                                             x_obs_stacked))
+    comp_dat_y0 <- data.frame(comp_dat_unval, Y = 0)
+    comp_dat_y1 <- data.frame(comp_dat_unval, Y = 1)
+    colnames(comp_dat_y0)[length(colnames(comp_dat_y0))] <- colnames(comp_dat_y1)[length(colnames(comp_dat_y1))] <- Y_val
+    comp_dat_unval <- data.matrix(cbind(rbind(comp_dat_y0, comp_dat_y1),
+                                        k = rep(rep(seq(1, m), each = (N - n)), times = 2)))
+    comp_dat_unval <- comp_dat_unval[, c(Y_unval, pred, Bspline, "k")]
 
-      comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
-    } else {
-      # Save static (X*,X,Y,C) since they don't change ---------------
-      comp_dat_val <- data[c(1:n), c(Y_val, pred, Bspline)]
-      comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
-      comp_dat_val <- comp_dat_val[, c(Y_val, pred, Bspline, "k")]
-      comp_dat_val <- data.matrix(comp_dat_val)
+    comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
 
-      # (m x n)xd vectors of each (one column per person, one row per x) --
-      suppressWarnings(
-        comp_dat_unval <- data.matrix(
-          cbind(data[-c(1:n), c(Y_val, setdiff(x = pred, y = c(X_val)), Bspline)],
-                x_obs_stacked,
-                k = rep(seq(1, m), each = (N - n)))
-          )
-        )
-      comp_dat_unval <- comp_dat_unval[, c(Y_val, pred, Bspline, "k")]
+    # Initialize B-spline coefficients {p_kj}  ------------
+    ## Numerators sum B(Xi*) over k = 1,...,m -------------
+    ## Save as p_val_num for updates ----------------------
+    ## (contributions don't change) -----------------------
+    p_val_num <- rowsum(x = comp_dat_val[, Bspline], group = comp_dat_val[, "k"], reorder = TRUE)
+    prev_p <- p0 <-  t(t(p_val_num) / colSums(p_val_num))
+  } else if (errorsX) {
+    # Save distinct X -------------------------------------------------
+    x_obs <- data.frame(unique(data[1:n, c(X_val)]))
+    x_obs <- data.frame(x_obs[order(x_obs[, 1]), ])
+    m <- nrow(x_obs)
+    x_obs_stacked <- do.call(rbind, replicate(n = (N - n), expr = x_obs, simplify = FALSE))
+    x_obs_stacked <- data.frame(x_obs_stacked[order(x_obs_stacked[, 1]), ])
+    colnames(x_obs) <- colnames(x_obs_stacked) <- c(X_val)
 
-      comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
-    }
+    # Save static (X*,X,Y,C) since they don't change ---------------
+    comp_dat_val <- data[c(1:n), c(Y_val, pred, Bspline)]
+    comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
+    comp_dat_val <- comp_dat_val[, c(Y_val, pred, Bspline, "k")]
+    comp_dat_val <- data.matrix(comp_dat_val)
+
+    # (m x n)xd vectors of each (one column per person, one row per x) --
+    suppressWarnings(
+      comp_dat_unval <- data.matrix(
+        cbind(data[-c(1:n), c(Y_val, setdiff(x = pred, y = c(X_val)), Bspline)],
+              x_obs_stacked,
+              k = rep(seq(1, m), each = (N - n)))
+      )
+    )
+    comp_dat_unval <- comp_dat_unval[, c(Y_val, pred, Bspline, "k")]
+
+    comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
 
     # Initialize B-spline coefficients {p_kj}  ------------
     ## Numerators sum B(Xi*) over k = 1,...,m -------------
@@ -150,9 +163,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
   if (errorsY) {
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
     gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
-  } #else {
-    #gamma_design_mat <- matrix(1, nrow = nrow(comp_dat_all[-c(1:n), ]), ncol = 1)
-  #}
+  }
 
   # Initialize parameter values -------------------------------------
   ## theta, gamma ---------------------------------------------------
@@ -163,15 +174,15 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
 
   if(initial_lr_params == "Zero") {
     prev_theta <- theta0 <- matrix(0, nrow = ncol(theta_design_mat), ncol = 1)
-    prev_gamma <- gamma0 <- matrix(0, nrow = ncol(gamma_design_mat), ncol = 1)
+    if (errorsY) {
+      prev_gamma <- gamma0 <- matrix(0, nrow = ncol(gamma_design_mat), ncol = 1)
+    }
   } else if(initial_lr_params == "Complete-data") {
     prev_theta <- theta0 <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(data[c(1:n), ]))$coefficients, ncol = 1)
     if (errorsY) {
       prev_gamma <- gamma0 <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(data[c(1:n), ]))$coefficient, ncol = 1)
     }
   }
-
-  y0 <- comp_dat_unval[, Y_val] == 0
 
   CONVERGED <- FALSE
   CONVERGED_MSG <- "Unknown"
@@ -183,77 +194,88 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     ## Update the psi_kyji for unvalidated subjects -------------------
     ### P(Y|X) --------------------------------------------------------
     mu_theta <- as.numeric(theta_design_mat[-c(1:n), ] %*% prev_theta)
-    pY_X <- 1/(1 + exp(-mu_theta))
-    pY_X[y0] <- 1-pY_X[y0]
+    pY_X <- 1 / (1 + exp(- mu_theta))
+    I_y0 <- comp_dat_unval[, Y_val] == 0
+    pY_X[I_y0] <- 1 - pY_X[I_y0]
     ### -------------------------------------------------------- P(Y|X)
     ###################################################################
     ### P(Y*|X*,Y,X) --------------------------------------------------
     if (errorsY) {
-      I_ystar0 <- comp_dat_unval[, Y_unval] == 0
       pYstar <- 1 / (1 + exp(- as.numeric(gamma_design_mat[-c(1:n), ] %*% prev_gamma)))
+      I_ystar0 <- comp_dat_unval[, Y_unval] == 0
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
 
-    } else {
-      pYstar <- matrix(1, nrow = nrow(comp_dat_unval))
-    }
+    } #else {
+      #pYstar <- matrix(1, nrow = nrow(comp_dat_unval))
+    #}
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
     ### P(X|X*) -------------------------------------------------------
-    if (errorsX) {
-      if (errorsY) {
-        ### p_kj ------------------------------------------------------
-        ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
-        ### multiply by the B-spline terms
-        pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_unval[, Bspline]
-        ### ---------------------------------------------------------- p_kj
-      } else {
-        ### p_kj ----------------------------------------------------------
-        ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
-        ### multiply by the B-spline terms
-        pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_unval[, Bspline]
-        ### ---------------------------------------------------------- p_kj
-      }
-      ### ----------------------------------------------------- P(X|X*)
-    } else { pX <- rep(1, times = nrow(comp_dat_unval)) }
+    if (errorsX & errorsY) {
+      ### p_kj ------------------------------------------------------
+      ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
+      ### multiply by the B-spline terms
+      pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_unval[, Bspline]
+      ### ---------------------------------------------------------- p_kj
+    } else if (errorsX) {
+      ### p_kj ----------------------------------------------------------
+      ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
+      ### multiply by the B-spline terms
+      pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_unval[, Bspline]
+      ### ---------------------------------------------------------- p_kj
+    } #else if (errorsY) {
+      #pX <- rep(1, times = nrow(comp_dat_unval))
+    #}
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
-    ### Update numerator ----------------------------------------------
-    ### P(Y|X,C)*P(Y*|X*,Y,X,C)p_kjB(X*) ------------------------------
-    psi_num <- c(pY_X * pYstar) * pX
-    ### Update denominator --------------------------------------------
-    #### Sum up all rows per id (e.g. sum over xk/y) ------------------
+    ### Estimate conditional expectations -----------------------------
     if (errorsY & errorsX) {
+      ### P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*) -----------------------------
+      psi_num <- c(pY_X * pYstar) * pX
+      ### Update denominator ------------------------------------------
+      #### Sum up all rows per id (e.g. sum over xk/y) ----------------
       psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2 * m))
-    } else if (errorsX) {
-      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = m))
-    } else if (errorsY) {
-      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2))
-    }
-    #### Then sum over the sn splines ---------------------------------
-    #### Same ordering as psi_t_num_sumover_k_y, just only 1 column ---
-    psi_denom <- rowSums(psi_denom)
-    #### Avoid NaN resulting from dividing by 0 -----------------------
-    psi_denom[psi_denom == 0] <- 1
-    ### And divide them! ----------------------------------------------
-    psi_t <- psi_num / psi_denom
-    ## ------------------- Update the psi_kyji for unvalidated subjects
-    ###################################################################
-    if (errorsX) {
-      ## Update the w_kyi for unvalidated subjects --------------------
-      ## by summing across the splines/ columns of psi_t --------------
-      ## w_t is ordered by i = (N-n), ..., N --------------------------
+      #### Then sum over the sn splines -------------------------------
+      psi_denom <- rowSums(psi_denom)
+      #### Avoid NaN resulting from dividing by 0 ---------------------
+      psi_denom[psi_denom == 0] <- 1
+      ### And divide them! --------------------------------------------
+      psi_t <- psi_num / psi_denom
+      ### Update the w_kyi for unvalidated subjects -------------------
+      ### by summing across the splines/ columns of psi_t -------------
       w_t <- rowSums(psi_t)
-      ## -------------------- Update the w_kyi for unvalidated subjects
-      if (errorsY) {
-        ## Update the u_kji for unvalidated subjects ------------------
-        ## by summing over Y = 0/1 w/i each i, k ----------------------
-        ## add top half of psi_t (y = 0) to bottom half (y = 1) -------
-        u_t <- psi_t[c(1:(2*(N - n))), ] + psi_t[-c(1:(2*(N - n))), ]
-        ## ------------------ Update the u_kji for unvalidated subjects
-      } else { u_t <- psi_t }
+      ### Update the u_kji for unvalidated subjects ------------------
+      ### by summing over Y = 0/1 w/i each i, k ----------------------
+      ### add top half of psi_t (y = 0) to bottom half (y = 1) -------
+      u_t <- psi_t[c(1:(2 * (N - n))), ] + psi_t[- c(1:(2 * (N - n))), ]
+    } else if (errorsX) {
+      ### P(Y|X,C)p_kjB(X*) -------------------------------------------
+      psi_num <- c(pY_X) * pX
+      ### Update denominator ------------------------------------------
+      #### Sum up all rows per id (e.g. sum over xk) ------------------
+      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = m))
+      #### Then sum over the sn splines -------------------------------
+      psi_denom <- rowSums(psi_denom)
+      #### Avoid NaN resulting from dividing by 0 ---------------------
+      psi_denom[psi_denom == 0] <- 1
+      ### And divide them! --------------------------------------------
+      psi_t <- psi_num / psi_denom
+      ### Update the w_kyi for unvalidated subjects -------------------
+      ### by summing across the splines/ columns of psi_t -------------
+      w_t <- rowSums(psi_t)
     } else if (errorsY) {
+      ### P(Y|X,C)P(Y*|Y,X,C) -----------------------------------------
+      #### Sum up all rows per id (e.g. sum over y) -------------------
+      psi_num <- matrix(c(pY_X * pYstar), ncol = 1)
+      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2))
+      #### Avoid NaN resulting from dividing by 0 ---------------------
+      psi_denom[psi_denom == 0] <- 1
+      ### And divide them! --------------------------------------------
+      psi_t <- psi_num / psi_denom
+      ### Update the w_kyi for unvalidated subjects -------------------
       w_t <- psi_t
     }
+    ### ----------------------------- Estimate conditional expectations
     # ---------------------------------------------------------- E Step
     ###################################################################
 
@@ -267,14 +289,13 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     gradient_theta <- matrix(data = c(colSums(w_t * c((comp_dat_all[, Y_val] - 1 + exp(-mu) / (1 + exp(- mu)))) * theta_design_mat)), ncol = 1)
     ### ------------------------------------------------------ Gradient
     ### Hessian -------------------------------------------------------
-    post_multiply <- c((exp(-mu) / (1 + exp(-mu))) * (exp(-mu)/(1 + exp(-mu)) - 1)) * w_t * theta_design_mat
+    post_multiply <- c((exp(- mu) / (1 + exp(- mu))) * (exp(- mu)/(1 + exp(- mu)) - 1)) * w_t * theta_design_mat
     hessian_theta <- apply(theta_design_mat, MARGIN = 2, FUN = hessian_row, pm = post_multiply)
 
     new_theta <- tryCatch(expr = prev_theta - solve(hessian_theta) %*% gradient_theta,
                           error = function(err) {
                             matrix(NA, nrow = nrow(prev_theta))
-                          }
-    )
+                          })
     if (any(is.na(new_theta))) {
       suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
@@ -285,44 +306,47 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     if (errorsY) {
       ## Update gamma using weighted logistic regression ----------------
       mu <- gamma_design_mat %*% prev_gamma
-      gradient_gamma <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(-mu) / (1 + exp(-mu)))) * gamma_design_mat)), ncol = 1)
+      gradient_gamma <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
       ### ------------------------------------------------------ Gradient
       ### Hessian -------------------------------------------------------
-      post_multiply <- c(w_t * (exp(- mu) / (1 + exp(- mu))) * (exp(-mu) / (1 + exp(-mu)) - 1)) * gamma_design_mat
+      post_multiply <- c(w_t * (exp(- mu) / (1 + exp(- mu))) * (exp(- mu) / (1 + exp(- mu)) - 1)) * gamma_design_mat
       hessian_gamma <- apply(gamma_design_mat, MARGIN = 2, FUN = hessian_row, pm = post_multiply)
       new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
                             error = function(err) {
                               matrix(NA, nrow = nrow(prev_gamma))
-                            }
-      )
+                            })
       if (any(is.na(new_gamma))) {
         suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
       }
       # Check for convergence -----------------------------------------
       gamma_conv <- abs(new_gamma - prev_gamma) < TOL
       ## ---------------- Update gamma using weighted logistic regression
-    } else {
-      gamma_conv <- TRUE
-    }
+    } else { gamma_conv <- TRUE }
     ###################################################################
-    if (errorsX) {
-      ## Update {p_kj} --------------------------------------------------
-      ### Update numerators by summing u_t over i = 1, ..., N -----------
+    ## Update {p_kj} --------------------------------------------------
+    if (errorsX & errorsY) {
+      ### Update numerators by summing u_t over i = 1, ..., N ---------
       new_p_num <- p_val_num +
         rowsum(u_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
       new_p <- t(t(new_p_num) / colSums(new_p_num))
-      ### Check for convergence -----------------------------------------
+      ### Check for convergence ---------------------------------------
       p_conv <- abs(new_p - prev_p) < TOL
-      ## -------------------------------------------------- Update {p_kj}
-    } else {
-      p_conv <- TRUE
+    } else if (errorsX) {
+      ### Update numerators by summing u_t over i = 1, ..., N ---------
+      new_p_num <- p_val_num +
+        rowsum(psi_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
+      new_p <- t(t(new_p_num) / colSums(new_p_num))
+      ### Check for convergence ---------------------------------------
+      p_conv <- abs(new_p - prev_p) < TOL
     }
+    else { p_conv <- TRUE }
+    ## -------------------------------------------------- Update {p_kj}
     ###################################################################
     # M Step ----------------------------------------------------------
     ###################################################################
 
     all_conv <- c(theta_conv, gamma_conv, p_conv)
-    if (mean(all_conv) == 1) CONVERGED <- TRUE
+    if (mean(all_conv) == 1) { CONVERGED <- TRUE }
 
     # Update values for next iteration  -------------------------------
     it <- it + 1
@@ -332,8 +356,11 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     #  ------------------------------- Update values for next iteration
   }
 
+  rownames(new_theta) <- c("Intercept", theta_pred)
+  if (errorsY) { rownames(new_gamma) <- c("Intercept", gamma_pred) }
+
   if(!CONVERGED) {
-    if(it > MAX_ITER) CONVERGED_MSG = "MAX_ITER reached"
+    if(it > MAX_ITER) { CONVERGED_MSG = "MAX_ITER reached" }
 
     return(list(Coefficients = data.frame(Coefficient = matrix(NA, nrow = nrow(prev_theta)),
                                           SE = NA),
@@ -343,16 +370,12 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
                 iterations = it,
                 od_loglik_at_conv = NA))
   }
-  rownames(new_theta) <- c("Intercept", theta_pred)
-  if (errorsY) { rownames(new_gamma) <- c("Intercept", gamma_pred) }
-
-  if(CONVERGED) CONVERGED_MSG <- "Converged"
+  if(CONVERGED) { CONVERGED_MSG <- "Converged" }
   # ---------------------------------------------- Estimate theta using EM
   if(noSE) {
     if (!errorsX) {
       new_p <- p_val_num <- matrix(NA, nrow = 1, ncol = 1)
     }
-
     if (!errorsY) {
       new_gamma <- NA
     }
@@ -386,7 +409,6 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     if (!errorsX) {
       new_p <- p_val_num <- matrix(NA, nrow = 1, ncol = 1)
     }
-
     if (!errorsY) {
       new_gamma <- NA
     }

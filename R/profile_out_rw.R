@@ -40,16 +40,14 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
   prev_gamma <- gamma0
   prev_p <- p0
 
-  comp_dat_unval <- comp_dat_all[- c(1:n), ]
+  theta_design_mat <- cbind(int = 1, comp_dat_all[-c(1:n), theta_pred])
 
-  theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
-
-  ### P(Y|X) --------------------------------------------------------
-  I_y0 <-  comp_dat_unval[, Y_val] == 0
-  mu_theta <- as.numeric(theta_design_mat[- c(1:n), ] %*% theta)
+  # For the E-step, save static P(Y|X) for unvalidated --------------
+  mu_theta <- as.numeric(theta_design_mat %*% theta)
   pY_X <- 1 / (1 + exp(- mu_theta))
+  I_y0 <-  comp_dat_all[-c(1:n), Y_val] == 0
   pY_X[I_y0] <- 1 - pY_X[I_y0]
-  ### -------------------------------------------------------- P(Y|X)
+  # -------------- For the E-step, save static P(Y|X) for unvalidated
 
   if (errorsY) {
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
@@ -57,143 +55,145 @@ profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = 
   }
 
   CONVERGED <- FALSE
-  CONVERGED_MSG <- "SE not converged"
+  CONVERGED_MSG <- "Unknown"
   it <- 1
-  # Estimate gamma/p using EM ----------------------------------------------
-  while(it < MAX_ITER & !CONVERGED) {
-    ###################################################################
+
+  # Estimate gamma/p using EM -----------------------------------------
+  while(it <= MAX_ITER & !CONVERGED) {
     # E Step ----------------------------------------------------------
-    ###################################################################
     ## P(Y*|X*,Y,X) ---------------------------------------------------
     if (errorsY) {
-      I_ystar0 <- comp_dat_unval[, Y_unval] == 0
-      pYstar <- 1/(1 + exp(-as.numeric(gamma_design_mat[- c(1:n), ] %*% prev_gamma)))
+      mu_gamma <- as.numeric(gamma_design_mat[-c(1:n), ] %*% prev_gamma)
+      pYstar <- 1 / (1 + exp(- mu_gamma))
+      I_ystar0 <- comp_dat_all[-c(1:n), Y_unval] == 0
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
-
-    } else { pYstar <- rep(1, times = nrow(comp_dat_unval)) }
-    ## --------------------------------------------------- P(Y*|X*,Y,X)
-    ## P(X|X*) --------------------------------------------------------
-    if (errorsX) {
-      if (errorsY) {
-        ### p_kj x the B-spline terms
-        pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_unval[, Bspline]
-      } else {
-        ### p_kj x the B-spline terms
-        pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 1), ] * comp_dat_unval[, Bspline]
-      }
-    } else { pX <- rep(1, times = nrow(comp_dat_unval)) }
-    ## -------------------------------------------------------- P(X|X*)
+    }
+    ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
-    ## Update the psi_kyji for unvalidated subjects -------------------
-    ### Update numerator: P(Y|X,C)*P(Y*|X*,Y,X,C)p_kjB(X*) ------------
-    psi_num <- pY_X * pYstar * pX
-    ### Update denominator --------------------------------------------
-    ### (1) Sum up all rows per id (e.g. sum over xk/y) ---------------
-    if (errorsY & errorsX) {
-      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2 * m))
+    ### P(X|X*) -------------------------------------------------------
+    if (errorsX & errorsY) {
+      ### p_kj ------------------------------------------------------
+      ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
+      ### multiply by the B-spline terms
+      pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_all[-c(1:n), Bspline]
+      ### ---------------------------------------------------------- p_kj
     } else if (errorsX) {
-      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = m))
-    } else if (errorsY) {
-      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2))
+      ### p_kj ----------------------------------------------------------
+      ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
+      ### multiply by the B-spline terms
+      pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_all[-c(1:n), Bspline]
+      ### ---------------------------------------------------------- p_kj
     }
-    ### (2) Then sum over the sn splines ------------------------------
-    psi_denom <- rowSums(psi_denom)
-    ### Avoid NaN resulting from dividing by 0 -----------------------
-    psi_denom[psi_denom == 0] <- 1
-    ### And divide them! ----------------------------------------------
-    psi_t <- psi_num / psi_denom
-    ## ------------------- Update the psi_kyji for unvalidated subjects
-    if (errorsX) {
-      ## Update the w_kyi for unvalidated subjects --------------------
-      ## by summing across the splines/ columns of psi_t --------------
-      ## w_t is ordered by i = (N-n), ..., N --------------------------
-      w_t <- rowSums(psi_t)
-      ## -------------------- Update the w_kyi for unvalidated subjects
-      if (errorsY) {
-        ## Update the u_kji for unvalidated subjects ------------------
-        ## by summing over Y = 0/1 w/i each i, k ----------------------
-        ## add top half of psi_t (y = 0) to bottom half (y = 1) -------
-        u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[-c(1:(m * (N - n))), ]
-        ## ------------------ Update the u_kji for unvalidated subjects
-      } else { u_t <- psi_t }
-    } else if (errorsY) {
-      w_t <- psi_t
-      ## Update the u_kji for unvalidated subjects --------------------
-      ## by summing over Y = 0/1 w/i each i, k ------------------------
-      ## add top half of psi_t (y = 0) to bottom half (y = 1) ---------
-      # u_t <- psi_t[c(1:(N - n))] + psi_t[-c(1:(N - n))]
-      ## -------------------- Update the u_kji for unvalidated subjects
-    }
+    ### ------------------------------------------------------- P(X|X*)
     ###################################################################
-    # E Step ----------------------------------------------------------
+    ### Estimate conditional expectations -----------------------------
+    if (errorsY & errorsX) {
+      ### P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*) -----------------------------
+      psi_num <- c(pY_X * pYstar) * pX
+      ### Update denominator ------------------------------------------
+      #### Sum up all rows per id (e.g. sum over xk/y) ----------------
+      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2 * m))
+      #### Then sum over the sn splines -------------------------------
+      psi_denom <- rowSums(psi_denom)
+      #### Avoid NaN resulting from dividing by 0 ---------------------
+      psi_denom[psi_denom == 0] <- 1
+      ### And divide them! --------------------------------------------
+      psi_t <- psi_num / psi_denom
+      ### Update the w_kyi for unvalidated subjects -------------------
+      ### by summing across the splines/ columns of psi_t -------------
+      w_t <- rowSums(psi_t)
+      ### Update the u_kji for unvalidated subjects ------------------
+      ### by summing over Y = 0/1 w/i each i, k ----------------------
+      ### add top half of psi_t (y = 0) to bottom half (y = 1) -------
+      u_t <- psi_t[c(1:(2 * (N - n))), ] + psi_t[- c(1:(2 * (N - n))), ]
+    } else if (errorsX) {
+      ### P(Y|X,C)p_kjB(X*) -------------------------------------------
+      psi_num <- c(pY_X) * pX
+      ### Update denominator ------------------------------------------
+      #### Sum up all rows per id (e.g. sum over xk) ------------------
+      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = m))
+      #### Then sum over the sn splines -------------------------------
+      psi_denom <- rowSums(psi_denom)
+      #### Avoid NaN resulting from dividing by 0 ---------------------
+      psi_denom[psi_denom == 0] <- 1
+      ### And divide them! --------------------------------------------
+      psi_t <- psi_num / psi_denom
+      ### Update the w_kyi for unvalidated subjects -------------------
+      ### by summing across the splines/ columns of psi_t -------------
+      w_t <- rowSums(psi_t)
+    } else if (errorsY) {
+      ### P(Y|X,C)P(Y*|Y,X,C) -----------------------------------------
+      psi_num <- matrix(c(pY_X * pYstar), ncol = 1)
+      #### Sum up all rows per id (e.g. sum over y) -------------------
+      psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2))
+      #### Avoid NaN resulting from dividing by 0 ---------------------
+      psi_denom[psi_denom == 0] <- 1
+      ### And divide them! --------------------------------------------
+      psi_t <- psi_num / psi_denom
+      ### Update the w_kyi for unvalidated subjects -------------------
+      w_t <- psi_t
+    }
+    ### ----------------------------- Estimate conditional expectations
+    # ---------------------------------------------------------- E Step
     ###################################################################
 
     ###################################################################
     # M Step ----------------------------------------------------------
     ###################################################################
-    ## Update gamma using weighted logistic regression ----------------
     if (errorsY) {
       w_t <- c(rep(1, n), w_t)
+
+      ## Update gamma using weighted logistic regression ----------------
       mu <- gamma_design_mat %*% prev_gamma
-      ### Gradient ----------------------------------------------------
-      gradient_gamma <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(-mu)/(1 + exp(-mu)))) * gamma_design_mat)), ncol = 1)
-      ### ---------------------------------------------------- Gradient
-      ### Hessian -----------------------------------------------------
-      post_multiply <- c(w_t * (exp(-mu) / (1 + exp(-mu))) * (exp(-mu) / (1 + exp(-mu)) - 1)) * gamma_design_mat
-      hessian_gamma <- apply(gamma_design_mat,
-                             MARGIN = 2,
-                             FUN = hessian_row,
-                             pm = post_multiply)
-      ### ----------------------------------------------------- Hessian
-      ### Newton step -------------------------------------------------
+      gradient_gamma <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
+      ### ------------------------------------------------------ Gradient
+      ### Hessian -------------------------------------------------------
+      post_multiply <- c(w_t * (exp(- mu) / (1 + exp(- mu))) * (exp(- mu) / (1 + exp(- mu)) - 1)) * gamma_design_mat
+      hessian_gamma <- apply(gamma_design_mat, MARGIN = 2, FUN = hessian_row, pm = post_multiply)
       new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
                             error = function(err) {
                               matrix(NA, nrow = nrow(prev_gamma))
                             })
       if (any(is.na(new_gamma))) {
-        suppressWarnings(
-          new_gamma <- matrix(glm(formula = gamma_formula,
-                                  family = "binomial",
-                                  data = data.frame(comp_dat_all),
-                                  weights = w_t)$coefficients, ncol = 1)
-        )
+        suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
       }
-      ### ------------------------------------------------- Newton step
-      ### Check gamma for convergence ---------------------------------
+      # Check for convergence -----------------------------------------
       gamma_conv <- abs(new_gamma - prev_gamma) < TOL
-      ### --------------------------------- Check gamma for convergence
+      ## ---------------- Update gamma using weighted logistic regression
     } else { gamma_conv <- TRUE }
-    ## ---------------- Update gamma using weighted logistic regression
     ###################################################################
     ## Update {p_kj} --------------------------------------------------
-    if (errorsX) {
+    if (errorsX & errorsY) {
       ### Update numerators by summing u_t over i = 1, ..., N ---------
       new_p_num <- p_val_num +
         rowsum(u_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
-      ### --------- Update numerators by summing u_t over i = 1, ..., N
-      ### Standardize so that p_kj sums to 1 over j -------------------
       new_p <- t(t(new_p_num) / colSums(new_p_num))
-      ### ------------------- Standardize so that p_kj sums to 1 over j
-      ### Check p for convergence -------------------------------------
+      ### Check for convergence ---------------------------------------
       p_conv <- abs(new_p - prev_p) < TOL
-      ### ------------------------------------- Check p for convergence
-    } else { p_conv <- TRUE }
+    } else if (errorsX) {
+      ### Update numerators by summing u_t over i = 1, ..., N ---------
+      new_p_num <- p_val_num +
+        rowsum(psi_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
+      new_p <- t(t(new_p_num) / colSums(new_p_num))
+      ### Check for convergence ---------------------------------------
+      p_conv <- abs(new_p - prev_p) < TOL
+    }
+    else { p_conv <- TRUE }
     ## -------------------------------------------------- Update {p_kj}
     ###################################################################
     # M Step ----------------------------------------------------------
     ###################################################################
 
-    # Check gamma and {p_kj} for overall EM convergence ---------------
     all_conv <- c(gamma_conv, p_conv)
-    if (mean(all_conv) == 1) CONVERGED <- TRUE
-    # --------------- Check gamma and {p_kj} for overall EM convergence
+    if (mean(all_conv) == 1) { CONVERGED <- TRUE }
 
-    # Update values for next iteration --------------------------------
+    # Update values for next iteration  -------------------------------
     it <- it + 1
     if (errorsY) { prev_gamma <- new_gamma }
     if (errorsX) { prev_p <- new_p }
-    # -------------------------------- Update values for next iteration
+    #  ------------------------------- Update values for next iteration
   }
+
   if(it == MAX_ITER & !CONVERGED) {
     CONVERGED_MSG <- "MAX_ITER reached"
     if (errorsY) { new_gamma <- matrix(NA, nrow = nrow(gamma0), ncol = 1) } else { new_gamma <- NA }
