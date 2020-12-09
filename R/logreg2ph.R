@@ -142,8 +142,12 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
+  all_theta <- vector()
+
   # Estimate theta using EM -------------------------------------------
   while(it <= MAX_ITER & !CONVERGED) {
+    # Save values
+    all_theta <- append(all_theta, prev_theta)
     # E Step ----------------------------------------------------------
     ## Update the psi_kyji for unvalidated subjects -------------------
     ### P(Y|X) --------------------------------------------------------
@@ -275,6 +279,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                 se_converged = NA,
                 converged_msg = CONVERGED_MSG,
                 iterations = it,
+                all_iter_theta = all_theta,
                 od_loglik_at_conv = NA))
   }
   if(CONVERGED) CONVERGED_MSG <- "Converged"
@@ -307,6 +312,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                 se_converged = NA,
                 converged_msg = CONVERGED_MSG,
                 iterations = it,
+                all_iter_theta = all_theta,
                 od_loglik_at_conv = od_loglik_theta))
   } else {
     rownames(new_theta) <- c("Intercept", colnames(theta_design_mat)[-1])
@@ -407,6 +413,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                 se_converged = SE_CONVERGED,
                 converged_msg = CONVERGED_MSG,
                 iterations = it,
+                all_iter_theta = all_theta,
                 od_loglik_at_conv = od_loglik_theta))
   }
 }
