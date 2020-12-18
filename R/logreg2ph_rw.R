@@ -82,7 +82,7 @@ logreg2ph_rw <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = N
     colnames(x_obs) <- colnames(x_obs_stacked) <- c(X_val)
 
     # Save static (X*,Y*,X,Y,C) since they don't change ---------------
-    comp_dat_val <- data[c(1:n), c(Y_unval, pred, Bspline)] # c(Y_unval, X_unval, C, Bspline, X_val, Y_val)
+    comp_dat_val <- data[c(1:n), c(Y_unval, X_unval, C, Bspline, X_val, Y_val)]
     comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
     comp_dat_val <- comp_dat_val[, c(Y_unval, pred, Bspline, "k")]
     comp_dat_val <- data.matrix(comp_dat_val)

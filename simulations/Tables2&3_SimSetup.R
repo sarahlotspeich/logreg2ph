@@ -15,18 +15,18 @@ n <- 250 # Phase-II/audit size = n
 beta0 <- -1; beta1 <- 1; beta2 <- -0.5
 
 # Generate true values Y, X, Z ----------------------------
-Z <- rbinom(n = N, size = 1, 
+Z <- rbinom(n = N, size = 1,
             prob = 0.25)
-X <- rbinom(n = N, size = 1, 
+X <- rbinom(n = N, size = 1,
             prob = (1 + exp(- (0))) ^ (- 1))
-Y <- rbinom(n = N, size = 1, 
+Y <- rbinom(n = N, size = 1,
             prob = (1 + exp(-(beta0 + beta1 * X + beta2 * Z))) ^ (- 1))
 
 # Generate error-prone X* = X + U -------------------------
 ## For U ~ N(mean, var) -----------------------------------
 muU <- 0 ## mean muU = 0 for unbiased, != 0 for biased ----
 s2U <- 0.1 ## variance ------------------------------------
-U <- rnorm(n = N, mean = muU, sd = sqrt(sU))
+U <- rnorm(n = N, mean = muU, sd = sqrt(s2U))
 Xstar <- X + U
 
 # Parameters for error model P(Y*|X*,Y,X,Z) ---------------
@@ -37,7 +37,7 @@ theta1 <- - theta0 - log((1 - sensY) / sensY)
 theta2 <- 1; theta3 <- 1; theta4 <- - 0.5
 
 # Generate error-prone Y* from error model P(Y*|X*,Y,X,Z) --
-Ystar <- rbinom(n = N, size = 1, 
+Ystar <- rbinom(n = N, size = 1,
                 prob = (1 + exp(- (theta0 + theta1 * Y + theta2 * X + theta3 * Xstar + theta4 * Z))) ^ (- 1))
 
 # Choose audit design: SRS or -----------------------------
@@ -49,16 +49,16 @@ audit <- "SRS" #or "Unvalidated case-control"
 ## V is a TRUE/FALSE vector where TRUE = validated --------
 if(audit == "SRS")
 {
-  V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE) 
+  V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE)
 }
 if(audit == "Unvalidated case-control")
 {
-  V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE), 
+  V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE),
                         sample(x = which(Ystar == 1), size = 0.5 * n, replace = FALSE))
 }
 
 # Build dataset --------------------------------------------
-sdat <- cbind(Y, X, Ystar, Xstar, Z, V)
+sdat <- data.frame(cbind(Y, X, Ystar, Xstar, Z, V))
 # Make Phase-II variables Y, X NA for unaudited subjects ---
 sdat[!V, c("Y", "X")] <- NA
 
@@ -67,15 +67,15 @@ sdat[!V, c("Y", "X")] <- NA
 naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = sdat)
 
 ## (2) Complete data model (for SRS) -----------------------
-cd <- glm(Y[V] ~ X[V] + Z[V], family = "binomial", data = sdat)
+cd <- glm(Y ~ X + Z, family = "binomial", data = sdat[V, ])
 
 ## (3) Horvitz Thompson (for case-control)------------------
-ht <- glm(Y[V] ~ X[V] + Z[V], family = "binomial", data = sdat,
-          weights = ifelse(Ystar[V] == 0, 
-                           1 / ((0.5 * n) / (table(Ystar)[1])), 
+ht <- glm(Y ~ X + Z, family = "binomial", data = sdat[V, ],
+          weights = ifelse(Ystar[V] == 0,
+                           1 / ((0.5 * n) / (table(Ystar)[1])),
                            1 / ((0.5 * n) / (table(Ystar)[2]))))
 beta_ht <- ht$coefficients[2]
-se_ht <- sqrt(diag(sandwich::sandwich(ht)))[2] 
+se_ht <- sqrt(diag(sandwich::sandwich(ht)))[2]
 
 ## (4) SMLE ------------------------------------------------
 ### Construct B-spline basis -------------------------------
@@ -90,9 +90,9 @@ sdat <- cbind(sdat, B)
 
 ### Script: implementation of proposed SMLE approach -------
 ### Get the script here https://github.com/sarahlotspeich/logreg_2ph/blob/master/logreg_2ph.R
-source("logreg_2ph.R")
-
-smle <- logreg_2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xstar", X_val = "X", C = "Z", Validated = "V", Bspline = colnames(B), 
-                   data = sdat, noSE = FALSE, MAX_ITER = 1000, rescale = FALSE, TOL = 1E-4)
+#source("logreg_2ph.R")
+library(logreg2ph)
+smle <- logreg2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xstar", X_val = "X", C = "Z", Validated = "V", Bspline = colnames(B),
+                   data = sdat, noSE = FALSE, MAX_ITER = 1000, TOL = 1E-4)
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]

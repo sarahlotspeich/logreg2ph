@@ -22,11 +22,13 @@
 #' \item{se_converged}{indicator of standard error estimate convergence.}
 #' \item{converged_msg}{(where applicable) description of non-convergence.}
 #' \item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
+#' \item{all_iter_theta}{dataframe containing parameter estimates from all iterations of the EM algorithm.}
+#' \item{all_iter_od_loglik}{dataframe containing the value of the observed-data log-likelihood from all iterations of the EM algorithm.}
 #' @export
 
 logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
-                       Validated = NULL, Bspline = NULL, data, initial_lr_params = "Zero",
-                       h_n_scale = NULL, noSE = FALSE, TOL = 1E-4, MAX_ITER = 1000)
+                      Validated = NULL, Bspline = NULL, data, initial_lr_params = "Zero",
+                      h_n_scale = NULL, noSE = FALSE, TOL = 1E-4, MAX_ITER = 1000)
 {
   rescale <- FALSE
 
@@ -48,9 +50,12 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     return(list(Coefficients = data.frame(Coefficient = NA,
                                           SE = NA),
                 converged = FALSE,
-                se_converged = NA,
+                se_converged = FALSE,
                 converged_msg = "B-spline error",
-                iterations = 0))
+                iterations = 0,
+                all_iter_theta = NA,
+                all_iter_od_loglik = NA,
+                od_loglik_at_conv = NA))
   }
   # ------------------------------------------ Add the B spline basis
 
@@ -142,7 +147,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
-  all_theta <- vector()
+  all_theta <- all_od_loglik <- vector()
 
   # Estimate theta using EM -------------------------------------------
   while(it <= MAX_ITER & !CONVERGED) {
@@ -259,6 +264,17 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ## -------------------------------------------------- Update {p_kj}
     ###################################################################
     # M Step ----------------------------------------------------------
+
+    all_od_loglik <- append(all_od_loglik,
+                            observed_data_loglik(N = N, n = n,
+                                                 Y_unval=Y_unval, Y_val=Y_val,
+                                                 X_unval=X_unval, X_val=X_val,
+                                                 C=C, Bspline=Bspline,
+                                                 comp_dat_all = comp_dat_all,
+                                                 theta = new_theta,
+                                                 gamma = new_gamma,
+                                                 p = new_p))
+
     all_conv <- c(theta_conv, gamma_conv, p_conv)
     if (mean(all_conv) == 1) CONVERGED <- TRUE
 
@@ -280,6 +296,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                 converged_msg = CONVERGED_MSG,
                 iterations = it,
                 all_iter_theta = all_theta,
+                all_iter_od_loglik = all_od_loglik,
                 od_loglik_at_conv = NA))
   }
   if(CONVERGED) CONVERGED_MSG <- "Converged"
@@ -313,6 +330,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                 converged_msg = CONVERGED_MSG,
                 iterations = it,
                 all_iter_theta = all_theta,
+                all_iter_od_loglik = all_od_loglik,
                 od_loglik_at_conv = od_loglik_theta))
   } else {
     rownames(new_theta) <- c("Intercept", colnames(theta_design_mat)[-1])
@@ -414,6 +432,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                 converged_msg = CONVERGED_MSG,
                 iterations = it,
                 all_iter_theta = all_theta,
+                all_iter_od_loglik = all_od_loglik,
                 od_loglik_at_conv = od_loglik_theta))
   }
 }
