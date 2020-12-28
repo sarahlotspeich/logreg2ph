@@ -1,5 +1,5 @@
 ###########################################################
-# Simulation setup for Table 1 ---------------------------- 
+# Simulation setup for Table 1 ----------------------------
 # Errors in binary outcome, binary covariate --------------
 ###########################################################
 
@@ -13,33 +13,37 @@ n <- 250 # Phase-II/audit size = n
 beta0 <- - 0.65; beta1 <- - 0.20; beta2 <- - 0.10
 
 # Generate true values Y, X, Z ----------------------------
-Z <- rbinom(n = N, size = 1, 
+Z <- rbinom(n = N, size = 1,
             prob = 0.25)
-X <- rbinom(n = N, size = 1, 
+X <- rbinom(n = N, size = 1,
             prob = (1 + exp(- (0))) ^ (- 1))
-Y <- rbinom(n = N, size = 1, 
+Y <- rbinom(n = N, size = 1,
             prob = (1 + exp(-(beta0 + beta1 * X + beta2 * Z))) ^ (- 1))
 
 # Parameters for error model P(X*|X,Z) --------------------
 ## Set sensitivity/specificity of X* = 0.75 ---------------
-sensX <- 0.75; specX <- 0.75
-delta0 <- - log(specX / (1 - specX)) 
+sensX <- specX <- 0.75
+delta0 <- - log(specX / (1 - specX))
 delta1 <- - delta0 - log((1 - sensX) / sensX)
-delta2 <- 0; delta3 <- 0.5
+delta2 <- 0 # We assume conditional independence of Y and X* given X
+delta3 <- 0.5
 
 # Generate error-prone X* from error model P(X*|X,Z) ------
-Xstar <- rbinom(n = N, size = 1, 
-                 prob = (1 + exp(- (delta0 + delta1 * X + delta2 * Y + delta3 * Z))) ^ (- 1)) 
+Xstar <- rbinom(n = N, size = 1,
+                 prob = (1 + exp(- (delta0 + delta1 * X + delta2 * Y + delta3 * Z))) ^ (- 1))
 
 # Parameters for error model P(Y*|X*,Y,X,Z) ---------------
 ## Set sensitivity/specificity of Y* = 0.95, 0.90 ---------
-sensY <- 0.95; specY <- 0.90
+sensY <- 0.95
+specY <- 0.90
 theta0 <- - log(specY / (1 - specY))
 theta1 <- - theta0 - log((1 - sensY) / sensY)
-theta2 <- - 0.2; theta3 <- - 0.2; theta4 <- - 0.1
+theta2 <- - 0.2
+theta3 <- - 0.2
+theta4 <- - 0.1
 
 # Generate error-prone Y* from error model P(Y*|X*,Y,X,Z) --
-Ystar <- rbinom(n = N, size = 1, 
+Ystar <- rbinom(n = N, size = 1,
                 prob = (1 + exp(- (theta0 + theta1 * Y + theta2 * X + theta3 * Xstar + theta4 * Z))) ^ (- 1))
 
 # Choose audit design: SRS or -----------------------------
@@ -50,11 +54,11 @@ audit <- "SRS" #or "Unvalidated case-control"
 ## V is a TRUE/FALSE vector where TRUE = validated --------
 if(audit == "SRS")
 {
-    V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE) 
+    V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE)
 }
 if(audit == "Unvalidated case-control")
 {
-    V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE), 
+    V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE),
                           sample(x = which(Ystar == 1), size = 0.5 * n, replace = FALSE))
 }
 
@@ -68,11 +72,18 @@ sdat[!V, c("Y", "X")] <- NA
 naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = sdat)
 
 ## (2) MLE -------------------------------------------------
-### Script: two-phase log-likelihood specification from Tang et al. (2015)
-### Get the script here https://github.com/sarahlotspeich/logreg_2ph/blob/master/Simulations/Tang_twophase_loglik_binaryX.R
+### Script: two-phase log-likelihood specification adapted from Tang et al. (2015)
+### Get the script here https://github.com/sarahlotspeich/logreg2ph/blob/master/simulations/Tang_twophase_loglik_binaryX.R
 source("Tang_twophase_loglik_binaryX.R")
-fit_Tang <- nlm(Tang_twophase_loglik, params <- rep(0, 12), hessian = TRUE, 
-                Val = "V", Y_unval = "Ystar", Y_val="Y", X_unval = "Xstar", X_val = "X", C = "Z", 
+fit_Tang <- nlm(f = Tang_twophase_loglik,
+                p = rep(0, 12),
+                hessian = TRUE,
+                Val = "V",
+                Y_unval = "Ystar",
+                Y_val="Y",
+                X_unval = "Xstar",
+                X_val = "X",
+                C = "Z",
                 data = sdat)
 beta_mle <- fit_Tang$estimate[10]
 se_mle <- sqrt(diag(solve(fit_Tang$hessian)))[10]
@@ -89,11 +100,19 @@ B[which(Z == 1 & Xstar == 1), 4] <- 1
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 
-### Script: implementation of proposed SMLE approach -------
-### Get the script here https://github.com/sarahlotspeich/logreg_2ph/blob/master/logreg_2ph.R
-source("logreg_2ph.R")
-
-smle <- logreg_2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xstar", X_val = "X", C = "Z", Validated = "V", Bspline = colnames(B), 
-                   data = sdat, noSE = FALSE, MAX_ITER = 1000, rescale = FALSE, TOL = 1E-4)
+### R package: implementation of proposed SMLE approach ----
+### To download the package, run: devtools::install_github("sarahlotspeich/logreg2ph")
+library("logreg2ph")
+smle <- logreg2ph(Y_unval = "Ystar",
+                  Y_val = "Y",
+                  X_unval = "Xstar",
+                  X_val = "X",
+                  C = "Z",
+                  Validated = "V",
+                  Bspline = colnames(B),
+                  data = sdat,
+                  noSE = FALSE,
+                  MAX_ITER = 1000,
+                  TOL = 1E-4)
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
