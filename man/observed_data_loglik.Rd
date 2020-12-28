@@ -14,6 +14,8 @@ observed_data_loglik(
   C = NULL,
   Bspline = NULL,
   comp_dat_all,
+  theta_pred,
+  gamma_pred,
   theta,
   gamma,
   p
@@ -37,6 +39,10 @@ observed_data_loglik(
 \item{Bspline}{Vector of columns containing the B-spline basis functions (can be name or numeric index)}
 
 \item{comp_dat_all}{Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)}
+
+\item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
+
+\item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
 
 \item{theta}{Parameters for the analysis model (a column vector)}
 

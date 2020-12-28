@@ -24,7 +24,7 @@
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
 #' @return Profile likelihood for `theta`: the value of the observed-data log-likelihood after profiling out other parameters.
 
-profile_out_rw <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL, Bspline = NULL,
+profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL, Bspline = NULL,
                            comp_dat_all, theta_pred, gamma_pred, gamma0, p0, p_val_num, TOL, MAX_ITER) {
   # Determine error setting -----------------------------------------
   ## If unvalidated variable was left blank, assume error-free ------

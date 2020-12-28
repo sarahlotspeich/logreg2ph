@@ -7,7 +7,7 @@
 pl_theta(
   k,
   theta,
-  h_n,
+  h_N,
   n,
   N,
   Y_unval,
@@ -17,9 +17,11 @@ pl_theta(
   C,
   Bspline,
   comp_dat_all,
-  gamma0,
-  p0,
-  p_val_num,
+  theta_pred,
+  gamma_pred,
+  gamma0 = NULL,
+  p0 = NULL,
+  p_val_num = NULL,
   TOL,
   MAX_ITER
 )
@@ -29,7 +31,7 @@ pl_theta(
 
 \item{theta}{Parameters for the analysis model (a column vector) at convergence, resulting from the EM algorithm}
 
-\item{h_n}{Size of the small perturbation in \code{theta[k]}, by default chosen to be \code{h_n =  N ^ ( - 1 / 2)}}
+\item{h_N}{Size of the small perturbation in \code{theta[k]}, by default chosen to be \code{h_N =  N ^ ( - 1 / 2)}}
 
 \item{n}{Phase II sample size}
 
@@ -49,6 +51,10 @@ pl_theta(
 
 \item{comp_dat_all}{Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)}
 
+\item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
+
+\item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
+
 \item{gamma0}{Starting values for \code{gamma}, the parameters for the outcome error model (a column vector)}
 
 \item{p0}{Starting values for \code{p}, the B-spline coefficients for the approximated covariate error model (a matrix)}
@@ -60,9 +66,9 @@ pl_theta(
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
 }
 \value{
-Profile likelihood for \code{theta} after perturbing element \code{k} by \code{h_n}.
+Profile likelihood for \code{theta} after perturbing element \code{k} by \code{h_N}.
 }
 \description{
 This function returns the value of the profile log-likelihood for parameters \code{theta} of the
-analysis model P(Y|X,C) after perturbing element \code{k} of \code{theta} by some small amount \code{h_n}.
+analysis model P(Y|X,C) after perturbing element \code{k} of \code{theta} by some small amount \code{h_N}.
 }
