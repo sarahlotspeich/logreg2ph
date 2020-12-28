@@ -69,9 +69,27 @@ sdat[!V, c("Y", "X")] <- NA
 
 # Fit models -----------------------------------------------
 ## (1) Naive model -----------------------------------------
-naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = sdat)
+naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = data.frame(sdat))
+beta_naive <- naive$coefficients[2]
+se_naive <- sqrt(diag(vcov(naive)))[2]
 
-## (2) MLE -------------------------------------------------
+## (2) Complete case model ---------------------------------
+cc <- glm(Y[V] ~ X[V] + Z[V], family = "binomial")
+beta_cc <- cc$coefficients[2]
+se_cc <- sqrt(diag(vcov(cc)))[2]
+
+## (3) Horvitz-Thompson (HT) estimator ---------------------
+## Note: if audit = "SRS", then CC = HT --------------------
+if (audit == "Unvalidated case-control") {
+  library(sandwich)
+  sample_wts <- ifelse(Ystar[V] == 0, 1 / ((0.5 * n) / (table(Ystar)[1])), 1 / ((0.5 * n) / (table(Ystar)[2])))
+  ht <- glm(Y[V] ~ X[V] + Z[V], family = "binomial",
+            weights = sample_wts)
+  beta_ht <- ht$coefficients[2]
+  se_ht <- sqrt(diag(sandwich(ht)))[2]
+}
+
+## (4) MLE -------------------------------------------------
 ### Script: two-phase log-likelihood specification adapted from Tang et al. (2015)
 ### Get the script here https://github.com/sarahlotspeich/logreg2ph/blob/master/simulations/Tang_twophase_loglik_binaryX.R
 source("Tang_twophase_loglik_binaryX.R")
@@ -88,7 +106,7 @@ fit_Tang <- nlm(f = Tang_twophase_loglik,
 beta_mle <- fit_Tang$estimate[10]
 se_mle <- sqrt(diag(solve(fit_Tang$hessian)))[10]
 
-## (3) SMLE ------------------------------------------------
+## (5) SMLE ------------------------------------------------
 ### Construct B-spline basis -------------------------------
 ### Since X* and Z are both binary, reduces to indicators --
 nsieve <- 4
