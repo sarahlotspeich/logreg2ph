@@ -7,3 +7,5 @@ To install the package, run the following in your `R` console:
 `devtools::install_github("sarahlotspeich/logreg2ph")`
 
 Inside the `simulations` subdirectory, you will find the following: 
+
+  - `Table1_SimSetup.R`: simulations with outcome misclassification and a binary error-prone covariate
