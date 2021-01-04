@@ -70,14 +70,52 @@ naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = sdat)
 cd <- glm(Y ~ X + Z, family = "binomial", data = sdat[V, ])
 
 ## (3) Horvitz Thompson (for case-control)------------------
-ht <- glm(Y ~ X + Z, family = "binomial", data = sdat[V, ],
-          weights = ifelse(Ystar[V] == 0,
-                           1 / ((0.5 * n) / (table(Ystar)[1])),
-                           1 / ((0.5 * n) / (table(Ystar)[2]))))
-beta_ht <- ht$coefficients[2]
-se_ht <- sqrt(diag(sandwich::sandwich(ht)))[2]
+## Note: if audit = "SRS", then CC = HT --------------------
+if (audit == "Unvalidated case-control") {
+  library(sandwich)
+  sample_wts <- ifelse(Ystar[V] == 0, 1 / ((0.5 * n) / (table(Ystar)[1])), 1 / ((0.5 * n) / (table(Ystar)[2])))
+  ht <- glm(Y[V] ~ X[V] + Z[V], family = "binomial",
+            weights = sample_wts)
+  beta_ht <- ht$coefficients[2]
+  se_ht <- sqrt(diag(sandwich(ht)))[2]
+}
 
-## (4) SMLE ------------------------------------------------
+## (4) Generalized raking ----------------------------------
+### Influence function for logistic regression
+### Taken from: https://github.com/T0ngChen/multiwave/blob/master/sim.r
+inf.fun <- function(fit) {
+  dm <- model.matrix(fit)
+  Ihat <- (t(dm) %*% (dm * fit$fitted.values * (1 - fit$fitted.values))) / nrow(dm)
+  ## influence function
+  infl <- (dm * resid(fit, type = "response")) %*% solve(Ihat)
+  infl
+}
+
+naive_infl <- inf.fun(naive) # error-prone influence functions based on naive model
+colnames(naive_infl) <- paste0("if", 1:3)
+
+# Add naive influence functions to sdat -----------------------------------------------
+sdat <- cbind(sdat, naive_infl)
+library(survey)
+if (audit == "SRS") {
+  sstudy <- twophase(id = list(~1, ~1),
+                     data = data.frame(sdat),
+                     subset = ~V)
+} else if (audit == "Unvalidated case-control") {
+  sstudy <- twophase(id = list(~id, ~id),
+                     data = data.frame(sdat),
+                     strat = list(NULL, ~Ystar),
+                     subset = ~V)
+}
+
+# Calibrate raking weights to the sum of the naive influence functions ----------------
+scal <- calibrate(sstudy, ~ if1 + if2 + if3, phase = 2, calfun = "raking")
+# Fit analysis model using calibrated weights -----------------------------------------
+rake <- svyglm(Y ~ X + Z, family = "binomial", design = scal)
+beta_rake <- rake$coefficients[2]
+se_rake <- sqrt(diag(vcov(rake)))[2]
+
+## (5) SMLE ------------------------------------------------
 ### Construct B-spline basis -------------------------------
 ### We chose cubic B-splines, ------------------------------
 ### with 20 df for N = 1000 and 24 df for N = 2000 ---------
@@ -88,9 +126,9 @@ B[which(Z == 1),(0.75 * nsieve + 1):nsieve] <- splines::bs(x = Xstar[which(Z == 
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 
-### Script: implementation of proposed SMLE approach -------
-### Get the script here https://github.com/sarahlotspeich/logreg_2ph/blob/master/logreg_2ph.R
-#source("logreg_2ph.R")
+### logreg2ph package: implementation of proposed SMLE approach -------
+### Download the package from GitHub:
+### devtools::install_github("sarahlotspeich/logreg2ph")
 library(logreg2ph)
 smle <- logreg2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xstar", X_val = "X", C = "Z", Validated = "V", Bspline = colnames(B),
                    data = sdat, noSE = FALSE, MAX_ITER = 1000, TOL = 1E-4)
