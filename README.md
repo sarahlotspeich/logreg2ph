@@ -11,4 +11,5 @@ To install the package, run the following in your `R` console:
 Inside the `simulations` subdirectory, you will find the following: 
 
   - `Table1_SimSetup.R`: simulations with outcome misclassification and a binary error-prone covariate, intended to inspect increasing Phase I and Phase II sample sizes
-  - `Tables2&3_SimSetup.R`: Simulations with outcome misclassification and a continuous covariate with additive errors when the Phase II design is simple random sampling, intended to inspect varied error variance 
+  - `Tables2&3_SimSetup.R`: Simulations with outcome misclassification and a continuous covariate with additive errors, intended to inspect varied error variance 
+  - `Tables4_SimSetup.R`: Simulations with outcome misclassification and a continuous covariate with additive errors, intended to inspect varied outcome error rates
