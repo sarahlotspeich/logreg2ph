@@ -97,10 +97,10 @@ naive_infl <- inf.fun(naive) # error-prone influence functions based on naive mo
 colnames(naive_infl) <- paste0("if", 1:3)
 
 # Add naive influence functions to sdat -----------------------------------------------
-sdat <- cbind(sdat, naive_infl)
+sdat <- cbind(id = 1:N, sdat, naive_infl)
 library(survey)
 if (audit == "SRS") {
-  sstudy <- twophase(id = list(~1, ~1),
+  sstudy <- twophase(id = list(~id, ~id),
                      data = data.frame(sdat),
                      subset = ~V)
 } else if (audit == "Unvalidated case-control") {
