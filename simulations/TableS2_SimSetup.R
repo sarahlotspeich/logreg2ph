@@ -88,7 +88,42 @@ if (audit == "Unvalidated case-control") {
   se_ht <- sqrt(diag(sandwich(ht)))[2]
 }
 
-## (4) MLE -------------------------------------------------
+## (4) Generalized raking ----------------------------------
+### Influence function for logistic regression
+### Taken from: https://github.com/T0ngChen/multiwave/blob/master/sim.r
+inf.fun <- function(fit) {
+  dm <- model.matrix(fit)
+  Ihat <- (t(dm) %*% (dm * fit$fitted.values * (1 - fit$fitted.values))) / nrow(dm)
+  ## influence function
+  infl <- (dm * resid(fit, type = "response")) %*% solve(Ihat)
+  infl
+}
+
+naive_infl <- inf.fun(naive) # error-prone influence functions based on naive model
+colnames(naive_infl) <- paste0("if", 1:3)
+
+# Add naive influence functions to sdat -----------------------------------------------
+sdat <- cbind(id = 1:N, sdat, naive_infl)
+library(survey)
+if (audit == "SRS") {
+  sstudy <- twophase(id = list(~id, ~id),
+                     data = data.frame(sdat),
+                     subset = ~V)
+} else if (audit == "Unvalidated case-control") {
+  sstudy <- twophase(id = list(~id, ~id),
+                     data = data.frame(sdat),
+                     strat = list(NULL, ~Ystar),
+                     subset = ~V)
+}
+
+# Calibrate raking weights to the sum of the naive influence functions ----------------
+scal <- calibrate(sstudy, ~ if1 + if2 + if3, phase = 2, calfun = "raking")
+# Fit analysis model using calibrated weights -----------------------------------------
+rake <- svyglm(Y ~ X + Z, family = "binomial", design = scal)
+beta_rake <- rake$coefficients[2]
+se_rake <- sqrt(diag(vcov(rake)))[2]
+
+## (5) MLE -------------------------------------------------
 ### Script: two-phase log-likelihood specification adapted from Tang et al. (2015)
 ### Get the script here https://github.com/sarahlotspeich/logreg2ph/blob/master/simulations/Tang_twophase_loglik_binaryX.R
 source("Tang_twophase_loglik_binaryX.R")
@@ -105,7 +140,7 @@ fit_Tang <- nlm(f = Tang_twophase_loglik,
 beta_mle <- fit_Tang$estimate[10]
 se_mle <- sqrt(diag(solve(fit_Tang$hessian)))[10]
 
-## (5) SMLE ------------------------------------------------
+## (6) SMLE ------------------------------------------------
 ### Construct B-spline basis -------------------------------
 ### For N = 1000, we select 20 sieves/total df -------------
 ### Let q = 3, cubic B-spline basis ------------------------
