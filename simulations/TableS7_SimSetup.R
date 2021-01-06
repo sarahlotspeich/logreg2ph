@@ -1,59 +1,55 @@
-###########################################################
-# Simulation setup for Table S6 ---------------------------
-# Errors in binary outcome, -------------------------------
-# Continuous covariate (additive, nonzero mean) -----------
-# Varied differential error means -------------------------
-###########################################################
+###############################################################
+# Simulation setup for Table S7 -------------------------------
+# Errors in binary outcome, -----------------------------------
+# Continuous covariate (multiplicative) -----------------------
+# Varied differential error max -------------------------------
+###############################################################
 
 set.seed(918)
 
-# Set sample sizes ----------------------------------------
+# Set sample sizes --------------------------------------------
 N <- 1000 # Phase-I = N
 n <- 250 # Phase-II/audit size = n
 
-# True parameter values for P(Y|X,Z) ----------------------
+# True parameter values for P(Y|X,Z) --------------------------
 beta0 <- -1
 beta1 <- 1
 beta2 <- -0.5
 
-# Generate true values Y, X, Z ----------------------------
+# Generate true values Y, X, Z --------------------------------
 Z <- rbinom(n = N, size = 1, prob = 0.25)
 X <- rnorm(n = N, mean = 0, sd = 1)
 Y <- rbinom(n = N, size = 1, prob = (1 + exp(-(beta0 + beta1 * X + beta2 * Z))) ^ (- 1))
 
-# Generate error-prone X* = X + U -------------------------
-## For U ~ N(mu0, var) if C = 0, ~ N(mu1, var) if C = 1 ---
-mu0 <- 0
-mu1 <- 1
-s2U <- 0.1
-U <- rnorm(n = N, mean = ifelse(Z == 0, mu0, mu1), sd = sqrt(sU))
-Xstar <- X + U
+# Generate error-prone X* = X x U -----------------------------
+## For U ~ Unif(0, eta0) if C = 0, ~ Unif(0, eta1) if C = 1 ---
+eta0 <- 1; eta1 <- 2
+U <- runif(n = N, min = 0, max = ifelse(Z == 0, eta0, eta1))
+Xstar <- X * U
 
-# Parameters for error model P(Y*|X*,Y,X,Z) ---------------
-## Set sensitivity/specificity of Y* ----------------------
+# Parameters for error model P(Y*|X*,Y,X,Z) -------------------
+## Set sensitivity/specificity of Y* --------------------------
 sensY <- 0.95; specY <- 0.90
 theta0 <- - log(specY / (1 - specY))
 theta1 <- - theta0 - log((1 - sensY) / sensY)
-theta2 <- 1
-theta3 <- 1
-theta4 <- - 0.5
+theta2 <- 1; theta3 <- 1; theta4 <- - 0.5
 
-# Generate error-prone Y* from error model P(Y*|X*,Y,X,Z) --
+# Generate error-prone Y* from error model P(Y*|X*,Y,X,Z) -----
 Ystar <- rbinom(n = N, size = 1, prob = (1 + exp(- (theta0 + theta1 * Y + theta2 * X + theta3 * Xstar + theta4 * Z))) ^ (- 1))
 
-# Draw audit of size n based on design --------------------
-## Unvalidated case-control: case-control based on Y^* ----
-## V is a TRUE/FALSE vector where TRUE = validated --------
+# Draw audit of size n based on design ------------------------
+## Unvalidated case-control: case-control based on Y^* --------
+## V is a TRUE/FALSE vector where TRUE = validated ------------
 V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE),
                       sample(x = which(Ystar == 1), size = 0.5 * n, replace = FALSE))
 
-# Build dataset --------------------------------------------
+# Build dataset ------------------------------------------------
 sdat <- cbind(Y, X, Ystar, Xstar, Z, V)
-# Make Phase-II variables Y, X NA for unaudited subjects ---
+# Make Phase-II variables Y, X NA for unaudited subjects -------
 sdat[!V, c("Y", "X")] <- NA
 
-# Fit models -----------------------------------------------
-## (1) Naive model -----------------------------------------
+# Fit models ---------------------------------------------------
+## (1) Naive model ---------------------------------------------
 naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = sdat)
 beta_naive <- naive$coefficients[2]
 se_naive <- sqrt(diag(cov(naive)))[2]
