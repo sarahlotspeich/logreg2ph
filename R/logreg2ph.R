@@ -1,7 +1,5 @@
 #' Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-#'
 #' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
-#
 #'
 #' @param Y_unval Column with the unvalidated outcome (can be name or numeric index). If \code{Y_unval} is null, the outcome is assumed to be error-free.
 #' @param Y_val Column with the validated outcome (can be name or numeric index)
@@ -247,7 +245,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       ### Update the u_kji for unvalidated subjects ------------------
       ### by summing over Y = 0/1 w/i each i, k ----------------------
       ### add top half of psi_t (y = 0) to bottom half (y = 1) -------
-      u_t <- psi_t[c(1:(2 * (N - n))), ] + psi_t[- c(1:(2 * (N - n))), ]
+      u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[- c(1:(m * (N - n))), ]
     } else if (errorsX) {
       ### P(Y|X,C)p_kjB(X*) -------------------------------------------
       psi_num <- c(pY_X) * pX

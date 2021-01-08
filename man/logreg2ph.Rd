@@ -2,7 +2,8 @@
 % Please edit documentation in R/logreg2ph.R
 \name{logreg2ph}
 \alias{logreg2ph}
-\title{Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems}
+\title{Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
+This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)}
 \usage{
 logreg2ph(
   Y_unval = NULL,
@@ -61,5 +62,6 @@ logreg2ph(
 \item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
 }
 \description{
+Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
 This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
 }
