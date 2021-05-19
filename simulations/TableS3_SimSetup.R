@@ -1,6 +1,8 @@
 ###########################################################
-# Simulation setup for Table 1 ----------------------------
+# Simulation setup for Table S3 ---------------------------
 # Errors in binary outcome, binary covariate --------------
+# With continuous error-free covariate --------------------
+# And complex P(Xb|Xb*)/P(Y*|Xb*,Y,Xb) specification ----------
 ###########################################################
 
 set.seed(918)
@@ -9,40 +11,36 @@ set.seed(918)
 N <- 1000 # Phase-I = N
 n <- 250 # Phase-II/audit size = n
 
-# Generate true values Y, Xb, Xa --------------------------
-Xa <- rbinom(n = N, size = 1, prob = 0.25)
-Xb <- rbinom(n = N, size = 1, prob = 0.5)
-Y <- rbinom(n = N, size = 1,prob = (1 + exp(-(- 0.65 - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
+# Generate true values Y, Xb, Xa ----------------------------
+Xa <- rnorm(n = N, mean = 0, sd = 1)
+Xb <- rbinom(n = N, size = 1,prob = 0.5)
+Y <- rbinom(n = N, size = 1, prob = (1 + exp(- (- 0.65 - 0.20 * Xb - 0.10 * Xa))) ^ (- 1))
 
-# Generate error-prone Xb* from error model P(Xb*|Xb,Xa) --
+# Generate error-prone Xb* from error model P(Xb*|Xb,Xa) ------
 sensX <- specX <- 0.75
 delta0 <- - log(specX / (1 - specX))
 delta1 <- - delta0 - log((1 - sensX) / sensX)
-Xbstar <- rbinom(n = N, size = 1,
-                 prob = (1 + exp(- (delta0 + delta1 * Xb + 0.5 * Xa))) ^ (- 1))
+Xbstar <- rbinom(n = N, size = 1, prob = (1 + exp(- (delta0 + delta1 * Xb + 0.5 * Xa - 0.1 * Xa ^ 2))) ^ (- 1))
 
-# Generate error-prone Y* from error model P(Y*|Xb*,Y,Xb,Xa)
-sensY <- 0.95
-specY <- 0.90
+# Generate error-prone Y* from error model P(Y*|Xb*,Y,Xb,Xa) --
+sensY <- 0.95; specY <- 0.90
 theta0 <- - log(specY / (1 - specY))
 theta1 <- - theta0 - log((1 - sensY) / sensY)
+theta5 <- 0.2 # Consider delta4 between -0.5 and 0.5 ------
 Ystar <- rbinom(n = N, size = 1,
-                prob = (1 + exp(- (theta0 - 0.2 * Xbstar + theta1 * Y - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
+                prob = (1 + exp(- (theta0 - 0.2 * Xbstar + theta1 * Y - 0.2 * Xb - 0.1 * Xa + theta5 * Xa ^ 2))) ^ (- 1))
 
-# Choose audit design: SRS or -----------------------------
-## Naive case-control: case-control based on Y^* ----------
+# Choose audit design: SRS or Naive case-control ----------
 audit <- "SRS" #or "Naive case-control"
 
 # Draw audit of size n based on design --------------------
 ## V is a TRUE/FALSE vector where TRUE = validated --------
-if(audit == "SRS")
-{
-    V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE)
+if(audit == "SRS") {
+  V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE)
 }
-if(audit == "Naive case-control")
-{
-    V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE),
-                          sample(x = which(Ystar == 1), size = 0.5 * n, replace = FALSE))
+if(audit == "Naive case-control") {
+  V <- seq(1, N) %in% c(sample(x = which(Ystar == 0), size = 0.5 * n, replace = FALSE),
+                        sample(x = which(Ystar == 1), size = 0.5 * n, replace = FALSE))
 }
 
 # Build dataset --------------------------------------------
@@ -64,7 +62,6 @@ se_cc <- sqrt(diag(vcov(cc)))[2]
 ## (3) Horvitz-Thompson (HT) estimator ---------------------
 ## Note: if audit = "SRS", then CC = HT --------------------
 if (audit == "Naive case-control") {
-  library(sandwich)
   sample_wts <- ifelse(Ystar[V] == 0, 1 / ((0.5 * n) / (table(Ystar)[1])), 1 / ((0.5 * n) / (table(Ystar)[2])))
   ht <- glm(Y[V] ~ Xb[V] + Xa[V], family = "binomial",
             weights = sample_wts)
@@ -126,16 +123,20 @@ se_mle <- sqrt(diag(solve(fit_Tang$hessian)))[10]
 
 ## (6) SMLE ------------------------------------------------
 ### Construct B-spline basis -------------------------------
-### Since Xb* and Xa are both binary, reduces to indicators --
-nsieve <- 4
+### For N = 1000, we select 20 sieves/total df -------------
+### Let q = 3, cubic B-spline basis ------------------------
+nsieve <- 20
 B <- matrix(0, nrow = N, ncol = nsieve)
-B[which(Xa == 0 & Xbstar == 0), 1] <- 1
-B[which(Xa == 0 & Xbstar == 1), 2] <- 1
-B[which(Xa == 1 & Xbstar == 0), 3] <- 1
-B[which(Xa == 1 & Xbstar == 1), 4] <- 1
+### Stratify our B-splines on binary Xbstar -----------------
+### Since Xb* has 50% prevalence, distribute 10 sieves each -
+### To Xb*=0 and Xb*=1 strata --------------------------------
+B[which(Xbstar == 0), 1:10] <- splines::bs(x = Xa[which(Xbstar == 0)], df = 10, Boundary.knots = range(Xa[which(Xbstar == 0)]), intercept = TRUE)
+B[which(Xbstar == 1), 11:20] <- splines::bs(x = Xa[which(Xbstar == 1)], df = 10, Boundary.knots = range(Xa[which(Xbstar == 1)]), intercept = TRUE)
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 
+### R package: implementation of proposed SMLE approach ----
+### To download the package, run: devtools::install_github("sarahlotspeich/logreg2ph")
 library("logreg2ph")
 smle <- logreg2ph(Y_unval = "Ystar",
                   Y_val = "Y",
