@@ -52,7 +52,7 @@ theta1 <- - theta0 - log((1 - sensY) / sensY)
 Ystar <- rbinom(n = N, size = 1, prob = (1 + exp(- (theta0 - 0.2 * Xbstar + theta1 * Y - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
 ```
 
-Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on Y* (naive case-control). Based on these designs, the validation indicators V are generated as follows: 
+Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on $Y^*$ (naive case-control). Based on these designs, the validation indicators V are generated as follows: 
 
 ```{r, eval = FALSE}
 # Choose audit design: SRS or -----------------------------
@@ -76,9 +76,9 @@ Finally, combine the generated data and validation indicators into an analytical
 
 ```{r, eval = F, tidy = T}
 # Build dataset --------------------------------------------
-sdat <- cbind(Y, X, Ystar, Xstar, Z, V)
-# Make Phase-II variables Y, X NA for unaudited subjects ---
-sdat[!V, c("Y", "X")] <- NA
+sdat <- cbind(Y, Xb, Ystar, Xbstar, Xa, V)
+# Make Phase-II variables Y, Xb NA for unaudited subjects ---
+sdat[!V, c("Y", "Xb")] <- NA
 ```
 
 ### Running Estimator Code
@@ -88,7 +88,7 @@ The `R` scripts each contain implementations for the estimators discussed in the
 #### 1. Naive Analysis
 
 ```{r, eval = F, tidy = T}
-naive <- glm(Ystar ~ Xstar + Z, family = "binomial", data = data.frame(sdat))
+naive <- glm(Ystar ~ Xbstar + Xa, family = "binomial", data = data.frame(sdat))
 beta_naive <- naive$coefficients[2]
 se_naive <- sqrt(diag(vcov(naive)))[2]
 ```
@@ -96,7 +96,7 @@ se_naive <- sqrt(diag(vcov(naive)))[2]
 #### 2. Complete-Case Analysis
 
 ```{r, eval = F, tidy = T}
-cc <- glm(Y[V] ~ X[V] + Z[V], family = "binomial")
+cc <- glm(Y[V] ~ Xb[V] + Xa[V], family = "binomial")
 beta_cc <- cc$coefficients[2]
 se_cc <- sqrt(diag(vcov(cc)))[2]
 ```
@@ -107,7 +107,7 @@ se_cc <- sqrt(diag(vcov(cc)))[2]
 library(sandwich)
 if (audit == "Naive case-control") {
   sample_wts <- ifelse(Ystar[V] == 0, 1 / ((0.5 * n) / (table(Ystar)[1])), 1 / ((0.5 * n) / (table(Ystar)[2])))
-  ht <- glm(Y[V] ~ X[V] + Z[V], family = "binomial",
+  ht <- glm(Y[V] ~ Xb[V] + Xa[V], family = "binomial",
             weights = sample_wts)
   beta_ht <- ht$coefficients[2]
   se_ht <- sqrt(diag(sandwich(ht)))[2]
@@ -148,12 +148,12 @@ if (audit == "SRS") {
 scal <- calibrate(sstudy, ~ if1 + if2 + if3, phase = 2, calfun = "raking")
 
 # Fit analysis model using calibrated weights -----------------------------------------
-rake <- svyglm(Y ~ X + Z, family = "binomial", design = scal)
+rake <- svyglm(Y ~ Xb + Xa, family = "binomial", design = scal)
 beta_rake <- rake$coefficients[2]
 se_rake <- sqrt(diag(vcov(rake)))[2]
 ```
 
-#### 5. Maximum Likelihood Estimator (MLE) (for Binary $X^*$ Only)
+#### 5. Maximum Likelihood Estimator (MLE) (for Binary Xb* Only)
 
 ```{r, eval = F, tidy = T}
 # Script: two-phase log-likelihood specification adapted from Tang et al. (2015) named ~/code/Tang_twophase_loglik_binaryX.R
@@ -164,9 +164,9 @@ fit_Tang <- nlm(f = Tang_twophase_loglik,
                 Val = "V",
                 Y_unval = "Ystar",
                 Y_val="Y",
-                X_unval = "Xstar",
-                X_val = "X",
-                C = "Z",
+                X_unval = "Xbstar",
+                X_val = "Xb",
+                C = "Xa",
                 data = sdat)
 beta_mle <- fit_Tang$estimate[10]
 se_mle <- sqrt(diag(solve(fit_Tang$hessian)))[10]
@@ -178,19 +178,19 @@ se_mle <- sqrt(diag(solve(fit_Tang$hessian)))[10]
 # Construct B-spline basis -------------------------------
 nsieve <- 4
 B <- matrix(0, nrow = N, ncol = nsieve)
-B[which(Z == 0 & Xstar == 0), 1] <- 1
-B[which(Z == 0 & Xstar == 1), 2] <- 1
-B[which(Z == 1 & Xstar == 0), 3] <- 1
-B[which(Z == 1 & Xstar == 1), 4] <- 1
+B[which(Xa == 0 & Xbstar == 0), 1] <- 1
+B[which(Xa == 0 & Xbstar == 1), 2] <- 1
+B[which(Xa == 1 & Xbstar == 0), 3] <- 1
+B[which(Xa == 1 & Xbstar == 1), 4] <- 1
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 
 library("logreg2ph")
 smle <- logreg2ph(Y_unval = "Ystar",
                   Y_val = "Y",
-                  X_unval = "Xstar",
-                  X_val = "X",
-                  C = "Z",
+                  X_unval = "Xbstar",
+                  X_val = "Xb",
+                  C = "Xa",
                   Validated = "V",
                   Bspline = colnames(B),
                   data = sdat,
