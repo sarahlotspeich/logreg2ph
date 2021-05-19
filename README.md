@@ -33,40 +33,23 @@ set.seed(918)
 N <- 1000 # Phase I size = N
 n <- 250 # Phase II/audit size = n
 
-# True parameter values for P(Y|X,Z) ----------------------
-beta0 <- - 0.65; beta1 <- - 0.20; beta2 <- - 0.10
+# Generate true values Y, Xb, Xa ----------------------------
+Xa <- rbinom(n = N, size = 1, prob = 0.25)
+Xb <- rbinom(n = N, size = 1, prob = 0.5)
+Y <- rbinom(n = N, size = 1, prob = (1 + exp(-(- 0.65 - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
 
-# Generate true values Y, X, Z ----------------------------
-Z <- rbinom(n = N, size = 1,
-            prob = 0.25)
-X <- rbinom(n = N, size = 1,
-            prob = (1 + exp(- (0))) ^ (- 1))
-Y <- rbinom(n = N, size = 1,
-            prob = (1 + exp(-(beta0 + beta1 * X + beta2 * Z))) ^ (- 1))
-
-# Parameters for error model P(X*|X,Z) --------------------
+# Generate error-prone Xb* from error model P(Xb*|Xb,Xa) ------
 sensX <- specX <- 0.75
 delta0 <- - log(specX / (1 - specX))
 delta1 <- - delta0 - log((1 - sensX) / sensX)
-delta2 <- 0 # We assume conditional independence of Y and X* given X
-delta3 <- 0.5
+Xbstar <- rbinom(n = N, size = 1, prob = (1 + exp(- (delta0 + delta1 * Xb + 0.5 * Xa))) ^ (- 1))
 
-# Generate error-prone X* from error model P(X*|X,Z) ------
-Xstar <- rbinom(n = N, size = 1,
-                 prob = (1 + exp(- (delta0 + delta1 * X + delta2 * Y + delta3 * Z))) ^ (- 1))
-
-# Parameters for error model P(Y*|X*,Y,X,Z) ---------------
+# Generate error-prone Y* from error model P(Y*|Xb*,Y,Xb,Xa) ---
 sensY <- 0.95
 specY <- 0.90
 theta0 <- - log(specY / (1 - specY))
 theta1 <- - theta0 - log((1 - sensY) / sensY)
-theta2 <- - 0.2
-theta3 <- - 0.2
-theta4 <- - 0.1
-
-# Generate error-prone Y* from error model P(Y*|X*,Y,X,Z) --
-Ystar <- rbinom(n = N, size = 1,
-                prob = (1 + exp(- (theta0 + theta1 * Y + theta2 * X + theta3 * Xstar + theta4 * Z))) ^ (- 1))
+Ystar <- rbinom(n = N, size = 1, prob = (1 + exp(- (theta0 - 0.2 * Xbstar + theta1 * Y - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
 ```
 
 Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on $Y^*$ (naive case-control). Based on these designs, the validation indicators $V$ are generated as follows: 
