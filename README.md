@@ -52,7 +52,7 @@ theta1 <- - theta0 - log((1 - sensY) / sensY)
 Ystar <- rbinom(n = N, size = 1, prob = (1 + exp(- (theta0 - 0.2 * Xbstar + theta1 * Y - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
 ```
 
-Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on $Y^*$ (naive case-control). Based on these designs, the validation indicators $V$ are generated as follows: 
+Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on Y* (naive case-control). Based on these designs, the validation indicators V are generated as follows: 
 
 ```{r, eval = FALSE}
 # Choose audit design: SRS or -----------------------------
