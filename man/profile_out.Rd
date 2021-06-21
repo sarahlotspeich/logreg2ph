@@ -31,23 +31,23 @@ profile_out(
 
 \item{N}{Phase I sample size}
 
-\item{Y_unval}{Column with the unvalidated outcome (can be name or numeric index)}
+\item{Y_unval}{Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.}
 
-\item{Y_val}{Column with the validated outcome (can be name or numeric index)}
+\item{Y_val}{Column names with the validated outcome.}
 
-\item{X_unval}{Column(s) with the unvalidated predictors (can be name or numeric index)}
+\item{X_unval}{Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
 
-\item{X_val}{Column(s) with the validated predictors (can be name or numeric index)}
+\item{X_val}{Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
 
-\item{C}{(Optional) Column(s) with additional error-free covariates (can be name or numeric index)}
+\item{C}{(Optional) Column name(s) with additional error-free covariates.}
 
-\item{Bspline}{Vector of columns containing the B-spline basis functions (can be name or numeric index)}
+\item{Bspline}{Vector of column names containing the B-spline basis functions.}
 
 \item{comp_dat_all}{Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)}
 
-\item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
+\item{theta_pred}{Vector of columns in \code{comp_dat_all} that pertain to the predictors in the analysis model.}
 
-\item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
+\item{gamma_pred}{Vector of columns in \code{comp_dat_all} that pertain to the predictors in the outcome error model.}
 
 \item{gamma0}{Starting values for \code{gamma}, the parameters for the outcome error model (a column vector)}
 
@@ -58,6 +58,8 @@ profile_out(
 \item{TOL}{Tolerance between iterations in the EM algorithm used to define convergence.}
 
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
+
+\item{Validated}{Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.}
 }
 \value{
 Profile likelihood for \code{theta}: the value of the observed-data log-likelihood after profiling out other parameters.

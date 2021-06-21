@@ -1,5 +1,5 @@
 #' Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-#' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
+#' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2021)
 #'
 #' @param Y_unval Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.
 #' @param Y_val Column names with the validated outcome.

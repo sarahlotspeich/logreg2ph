@@ -8,15 +8,16 @@
 #' @param theta Parameters for the analysis model (a column vector)
 #' @param N Phase I sample size
 #' @param n Phase II sample size
-#' @param Y_unval Column with the unvalidated outcome (can be name or numeric index)
-#' @param Y_val Column with the validated outcome (can be name or numeric index)
-#' @param X_unval Column(s) with the unvalidated predictors (can be name or numeric index)
-#' @param X_val Column(s) with the validated predictors (can be name or numeric index)
-#' @param C (Optional) Column(s) with additional error-free covariates (can be name or numeric index)
-#' @param Bspline Vector of columns containing the B-spline basis functions (can be name or numeric index)
+#' @param Y_unval Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.
+#' @param Y_val Column names with the validated outcome.
+#' @param X_unval Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param X_val Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param C (Optional) Column name(s) with additional error-free covariates.
+#' @param Validated Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.
+#' @param Bspline Vector of column names containing the B-spline basis functions.
 #' @param comp_dat_all Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)
-#' @param theta_pred Vector of columns in \code{data} that pertain to the predictors in the analysis model.
-#' @param gamma_pred Vector of columns in \code{data} that pertain to the predictors in the outcome error model.
+#' @param theta_pred Vector of columns in \code{comp_dat_all} that pertain to the predictors in the analysis model.
+#' @param gamma_pred Vector of columns in \code{comp_dat_all} that pertain to the predictors in the outcome error model.
 #' @param gamma0 Starting values for `gamma`, the parameters for the outcome error model (a column vector)
 #' @param p0 Starting values for `p`, the B-spline coefficients for the approximated covariate error model (a matrix)
 #' @param p_val_num Contributions of validated subjects to the numerator for `p`, which are fixed (a matrix)

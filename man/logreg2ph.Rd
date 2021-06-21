@@ -3,7 +3,7 @@
 \name{logreg2ph}
 \alias{logreg2ph}
 \title{Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)}
+This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2021)}
 \usage{
 logreg2ph(
   Y_unval = NULL,
@@ -63,5 +63,5 @@ logreg2ph(
 }
 \description{
 Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
+This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2021)
 }
