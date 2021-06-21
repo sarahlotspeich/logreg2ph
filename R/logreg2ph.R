@@ -1,19 +1,19 @@
 #' Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
 #' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
 #'
-#' @param Y_unval Column with the unvalidated outcome (can be name or numeric index). If \code{Y_unval} is null, the outcome is assumed to be error-free.
-#' @param Y_val Column with the validated outcome (can be name or numeric index)
-#' @param X_unval Column(s) with the unvalidated predictors (can be name or numeric index).  If \code{X_unval} and \code{X_val} are \code{null}, all precictors assumed to be error-free.
-#' @param X_val Column(s) with the validated predictors (can be name or numeric index). If \code{X_unval} and \code{X_val} are \code{null}, all precictors assumed to be error-free.
-#' @param C (Optional) Column(s) with additional error-free covariates (can be name or numeric index)
-#' @param Validated Columns with the validation indicator (can be name or numeric index)
-#' @param Bspline Vector of columns containing the B-spline basis functions (can be name or numeric index)
-#' @param data A dataframe with one row per subject containing columns: Y_unval, Y_val, X_unval, X_val, C, Validated, and Bspline.
+#' @param Y_unval Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.
+#' @param Y_val Column names with the validated outcome.
+#' @param X_unval Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param X_val Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param C (Optional) Column name(s) with additional error-free covariates.
+#' @param Validated Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.
+#' @param Bspline Vector of column names containing the B-spline basis functions.
+#' @param data A dataframe with one row per subject containing columns: \code{Y_unval}, \code{Y_val}, \code{X_unval}, \code{X_val}, \code{C}, \code{Validated}, and \code{Bspline}.
 #' @param theta_pred Vector of columns in \code{data} that pertain to the predictors in the analysis model.
 #' @param gamma_pred Vector of columns in \code{data} that pertain to the predictors in the outcome error model.
-#' @param initial_lr_params Initial values for parametric model parameters. Choices include (1) "Zero" (non-informative starting values) or (2) "Complete-data" (estimated based on validated subjects only)
+#' @param initial_lr_params Initial values for parametric model parameters. Choices include (1) \code{"Zero"} (non-informative starting values) or (2) \code{"Complete-data"} (estimated based on validated subjects only)
 #' @param h_N_scale Size of the perturbation used in estimating the standard errors via profile likelihood. If none is supplied, default is `h_N_scale = 1`.
-#' @param noSE Indicator for whether standard errors are desired. Defaults to noSE = FALSE.
+#' @param noSE Indicator for whether standard errors are desired. Defaults to \code{noSE = FALSE}.
 #' @param TOL Tolerance between iterations in the EM algorithm used to define convergence.
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
 #' @return
