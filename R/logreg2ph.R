@@ -514,7 +514,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     if (any(is.na(se_theta))) { SE_CONVERGED <- FALSE} else { TRUE }
     return(list(Coefficients = data.frame(Coefficient = new_theta,
                                           SE = se_theta),
-                I_theta = I_theta,
+                vcov = cov_theta,
                 converged = CONVERGED,
                 se_converged = SE_CONVERGED,
                 converged_msg = CONVERGED_MSG,
