@@ -122,7 +122,23 @@ colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 
 library(logreg2ph)
+library(tictoc)
+library(Rcpp)
+library(RcppEigen)
+tic("the whole thing")
 smle <- logreg2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa", Validated = "V", Bspline = colnames(B),
                   data = sdat, noSE = FALSE, MAX_ITER = 1000, TOL = 1E-4)
+toc()
+cpp_smle <- logreg2ph_vectors(Y_unval = Ystar,
+                          Y_val = Y,
+                          X_unval = Xbstar,
+                          X_val = Xb,
+                          C = Xa,
+                          Validated = V,
+                          Bspline = sdat[,colnames(B)],
+                          data = sdat,
+                          noSE = FALSE,
+                          MAX_ITER = 1000,
+                          TOL = 1E-4)
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
