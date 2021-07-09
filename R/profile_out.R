@@ -46,7 +46,7 @@ toc()
 
   # For the E-step, save static P(Y|X) for unvalidated --------------
 tic("e step")
-  mu_theta <- as.numeric(theta_design_mat %*% theta)
+  mu_theta <- as.numeric((theta_design_mat %*% theta))
   pY_X <- 1 / (1 + exp(- mu_theta))
   I_y0 <-  comp_dat_all[-c(1:n), Y_val] == 0
   pY_X[I_y0] <- 1 - pY_X[I_y0]
@@ -64,12 +64,29 @@ toc()
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
+  cppReturn <- profileOutLoop(it,
+                              MAX_ITER,
+                              CONVERGED,
+                              errorsX,
+                              errorsY,
+                              match(Y_unval, colnames(comp_dat_all))-1,
+                              match(Bspline, colnames(comp_dat_all))-1,
+                              N,
+                              n,
+                              m,
+                              gamma_design_mat,
+                              prev_gamma,
+                              comp_dat_all,
+                              prev_p,
+                              rep(seq(1, m), each = (N - n))-1,
+                              matrix(pY_X, ncol=1),
+                              rep(seq(1, (N - n)), times = m)-1)
   # Estimate gamma/p using EM -----------------------------------------
   while(it <= MAX_ITER & !CONVERGED) {
     # E Step ----------------------------------------------------------
     ## P(Y*|X*,Y,X) ---------------------------------------------------
     if (errorsY) {
-      mu_gamma <- as.numeric(gamma_design_mat[-c(1:n), ] %*% prev_gamma)
+      mu_gamma <- as.numeric((gamma_design_mat[-c(1:n), ] %*% prev_gamma))
       pYstar <- 1 / (1 + exp(- mu_gamma))
       I_ystar0 <- comp_dat_all[-c(1:n), Y_unval] == 0
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
@@ -90,6 +107,7 @@ toc()
       pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_all[-c(1:n), Bspline]
       ### ---------------------------------------------------------- p_kj
     }
+
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
     ### Estimate conditional expectations -----------------------------
@@ -145,6 +163,8 @@ toc()
       w_t <- psi_t
       toc()
     }
+
+    browser()
     ### ----------------------------- Estimate conditional expectations
     # ---------------------------------------------------------- E Step
     ###################################################################
@@ -155,13 +175,14 @@ toc()
     if (errorsY) {
       ## Update gamma using weighted logistic regression ----------------
       tic("M-step Y cpp")
+      w_t <- lengthenWT(w_t, n)
       muVector <- calculateMu(gamma_design_mat, prev_gamma)
       gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[,c(Y_unval)], muVector)
       hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n)
       toc()
 
 
-      # tic("M-step Y")
+      tic("M-step Y")
       # w_t <- c(rep(1, n), w_t)
       # mu <- gamma_design_mat %*% prev_gamma
       # gradient_gamma_R <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
@@ -175,9 +196,9 @@ toc()
       #   warning("cpp and R are significantly different!")
       #   browser()
       # }
-      # toc()
+      toc()
 
-      new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
+      new_gamma <- tryCatch(expr = prev_gamma - (solve(hessian_gamma) %*% gradient_gamma),
                             error = function(err) {
                               matrix(NA, nrow = nrow(prev_gamma))
                             })

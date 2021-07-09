@@ -129,16 +129,22 @@ tic("the whole thing")
 smle <- logreg2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa", Validated = "V", Bspline = colnames(B),
                   data = sdat, noSE = FALSE, MAX_ITER = 1000, TOL = 1E-4)
 toc()
-cpp_smle <- logreg2ph_vectors(Y_unval = Ystar,
-                          Y_val = Y,
-                          X_unval = Xbstar,
-                          X_val = Xb,
-                          C = Xa,
-                          Validated = V,
-                          Bspline = sdat[,colnames(B)],
-                          data = sdat,
-                          noSE = FALSE,
-                          MAX_ITER = 1000,
-                          TOL = 1E-4)
+# cpp_smle <- logreg2ph_vectors(Y_unval = Ystar,
+#                           Y_val = Y,
+#                           X_unval = Xbstar,
+#                           X_val = Xb,
+#                           C = Xa,
+#                           Validated = V,
+#                           Bspline = sdat[,colnames(B)],
+#                           data = sdat,
+#                           noSE = FALSE,
+#                           MAX_ITER = 1000,
+#                           TOL = 1E-4)
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
+
+
+
+# without cpp: >300 sec
+# June 24 2021: 220.46 sec
+# June 29 2021: 176.23 sec

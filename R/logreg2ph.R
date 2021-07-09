@@ -239,7 +239,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     # E Step ----------------------------------------------------------
     ## Update the psi_kyji for unvalidated subjects -------------------
     ### P(Y|X) --------------------------------------------------------
-    mu_theta <- as.numeric(theta_design_mat[-c(1:n), ] %*% prev_theta)
+    mu_theta <- as.numeric((theta_design_mat[-c(1:n), ] %*% prev_theta))
     pY_X <- 1 / (1 + exp(- mu_theta))
     I_y0 <- comp_dat_unval[, Y_val] == 0
     pY_X[I_y0] <- 1 - pY_X[I_y0]
@@ -249,7 +249,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ### P(Y*|X*,Y,X) --------------------------------------------------
     if (errorsY)
     {
-      pYstar <- 1 / (1 + exp(- as.numeric(gamma_design_mat[-c(1:n), ] %*% prev_gamma)))
+      pYstar <- 1 / (1 + exp(- as.numeric((gamma_design_mat[-c(1:n), ] %*% prev_gamma))))
       I_ystar0 <- comp_dat_unval[, Y_unval] == 0
       pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
 
@@ -343,6 +343,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ## Update theta using weighted logistic regression ----------------
     ### Gradient ------------------------------------------------------
     tic ("m-step cpp")
+    w_t <- lengthenWT(w_t, n)
     # calculateMu returns exp(-mu) / (1 + exp(-mu))
     muVector <- calculateMu(theta_design_mat, prev_theta)
     gradient_theta <- calculateGradient(w_t, n, theta_design_mat, comp_dat_all[, Y_val], muVector)
@@ -367,14 +368,14 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     #   warning("cpp and R are significantly different!")
     #   browser()
     # }
-    new_theta <- tryCatch(expr = prev_theta - solve(hessian_theta) %*% gradient_theta,
+    new_theta <- tryCatch(expr = prev_theta - (solve(hessian_theta) %*% gradient_theta),
       error = function(err)
       {
         matrix(NA, nrow = nrow(prev_theta))
         })
     if (any(is.na(new_theta)))
     {
-      suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = c(rep(1, n), w_t))$coefficients, ncol = 1))
+      suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
     }
 
     ### Check for convergence -----------------------------------------
@@ -385,11 +386,14 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     tic("theta")
     if (errorsY)
     {
+      # w_t is already the proper size
+
       ## Update gamma using weighted logistic regression ----------------
+      tic("gamma cpp")
       muVector <- calculateMu(gamma_design_mat, prev_gamma)
       gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[, c(Y_unval)], muVector)
       hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n)
-
+toc()
       # mu <- gamma_design_mat %*% prev_gamma
       # gradient_gamma_R <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
 
@@ -403,7 +407,8 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       # ### Hessian -------------------------------------------------------
       # post_multiply <- c(w_t * muVector * (muVector - 1)) * gamma_design_mat
       # hessian_gamma <- apply(gamma_design_mat, MARGIN = 2, FUN = hessian_row, pm = post_multiply)
-      new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
+      tic("gamma hessian checking")
+      new_gamma <- tryCatch(expr = prev_gamma - (solve(hessian_gamma) %*% gradient_gamma),
         error = function(err)
         {
           matrix(NA, nrow = nrow(prev_gamma))
@@ -416,6 +421,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       # Check for convergence -----------------------------------------
       gamma_conv <- abs(new_gamma - prev_gamma) < TOL
       ## ---------------- Update gamma using weighted logistic regression
+      toc()
     }
     else
     { gamma_conv <- TRUE }

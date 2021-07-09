@@ -3,6 +3,7 @@
 library(tictoc)
 library(Rcpp)
 library(RcppEigen)
+library(RcppArmadillo)
 library(logreg2ph)
 
 source("R/hessian_row.R")
