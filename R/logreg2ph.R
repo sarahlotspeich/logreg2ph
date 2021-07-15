@@ -344,6 +344,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ### Gradient ------------------------------------------------------
     tic ("m-step cpp")
     w_t <- lengthenWT(w_t, n)
+
     # calculateMu returns exp(-mu) / (1 + exp(-mu))
     muVector <- calculateMu(theta_design_mat, prev_theta)
     gradient_theta <- calculateGradient(w_t, n, theta_design_mat, comp_dat_all[, Y_val], muVector)
@@ -376,6 +377,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     if (any(is.na(new_theta)))
     {
       suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
+      browser()
     }
 
     ### Check for convergence -----------------------------------------

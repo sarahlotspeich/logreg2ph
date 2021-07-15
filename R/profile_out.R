@@ -64,55 +64,87 @@ toc()
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
-  cppReturn <- profileOutLoop(it,
-                              MAX_ITER,
-                              CONVERGED,
-                              errorsX,
-                              errorsY,
-                              match(Y_unval, colnames(comp_dat_all))-1,
-                              match(Bspline, colnames(comp_dat_all))-1,
-                              N,
-                              n,
-                              m,
-                              gamma_design_mat,
-                              prev_gamma,
-                              comp_dat_all,
-                              prev_p,
-                              rep(seq(1, m), each = (N - n))-1,
-                              matrix(pY_X, ncol=1),
-                              rep(seq(1, (N - n)), times = m)-1)
+  # tic("cpp profile_out loop")
+  # list <- profileOutLoop(MAX_ITER,
+  #                         errorsX,
+  #                         errorsY,
+  #                         match(Y_unval, colnames(comp_dat_all))-1,
+  #                         match(Bspline, colnames(comp_dat_all))-1,
+  #                         N,
+  #                         n,
+  #                         m,
+  #                         gamma_design_mat,
+  #                         prev_gamma,
+  #                         comp_dat_all,
+  #                         prev_p,
+  #                         rep(seq(1, m), each = (N - n))-1,
+  #                         matrix(pY_X, ncol=1),
+  #                         rep(seq(1, (N - n)), times = m)-1,
+  #                         gamma0,
+  #                         p0,
+  #                         TOL,
+  #                         p_val_num)
+  # toc()
+# browser()
+  tic("R profile_out loop")
   # Estimate gamma/p using EM -----------------------------------------
   while(it <= MAX_ITER & !CONVERGED) {
+
     # E Step ----------------------------------------------------------
-    ## P(Y*|X*,Y,X) ---------------------------------------------------
-    if (errorsY) {
-      mu_gamma <- as.numeric((gamma_design_mat[-c(1:n), ] %*% prev_gamma))
-      pYstar <- 1 / (1 + exp(- mu_gamma))
-      I_ystar0 <- comp_dat_all[-c(1:n), Y_unval] == 0
-      pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
-    }
+    # P(Y*|X*,Y,X) ---------------------------------------------------
+    pYstar <- pYstarCalc(errorsY, gamma_design_mat, n, prev_gamma, comp_dat_all, match(Y_unval, colnames(comp_dat_all))-1)
+    # if (errorsY) {
+    #   mu_gamma <- as.numeric((gamma_design_mat[-c(1:n), ] %*% prev_gamma))
+    #   pYstar <- 1 / (1 + exp(- mu_gamma))
+    #   I_ystar0 <- comp_dat_all[-c(1:n), Y_unval] == 0
+    #   pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
+    # }
+    # if (max(abs(cppPystar - pYstar)) > 1e-10)
+    # {
+    #   warning("cpp and R are significantly different!")
+    #     browser()
+    # }
+
+
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
     ### P(X|X*) -------------------------------------------------------
-    if (errorsX & errorsY) {
-      ### p_kj ------------------------------------------------------
-      ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
-      ### multiply by the B-spline terms
-      pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_all[-c(1:n), Bspline]
-      ### ---------------------------------------------------------- p_kj
-    } else if (errorsX) {
-      ### p_kj ----------------------------------------------------------
-      ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
-      ### multiply by the B-spline terms
-      pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_all[-c(1:n), Bspline]
-      ### ---------------------------------------------------------- p_kj
-    }
+    pX <- pXCalc(n, comp_dat_all, errorsX, errorsY, prev_p, rep(seq(1, m), each = (N - n))-1, match(Bspline, colnames(comp_dat_all))-1)
+    # if (errorsX & errorsY) {
+    #   ### p_kj ------------------------------------------------------
+    #   ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
+    #   ### multiply by the B-spline terms
+    #   pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_all[-c(1:n), Bspline]
+    #   ### ---------------------------------------------------------- p_kj
+    # } else if (errorsX) {
+    #   ### p_kj ----------------------------------------------------------
+    #   ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
+    #   ### multiply by the B-spline terms
+    #   pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_all[-c(1:n), Bspline]
+    #   ### ---------------------------------------------------------- p_kj
+    # }
+
+    # if (max(abs(cppPx - pX)) > 1e-10)
+    # {
+    #   warning("cpp and R are significantly different!")
+    #     browser()
+    # }
 
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
     ### Estimate conditional expectations -----------------------------
+
+    # cpp is slower than R for this!
+    # tic("cond exp")
+    # tempList <- conditionalExpectations(errorsX, errorsY, pX, pY_X, pYstar, rep(seq(1, (N - n)), times = m)-1, N-n, m)
+    # CPPw_t <- tempList[["w_t"]]
+    # CPPu_t <- tempList[["u_t"]]
+    # CPPpsi_t <- tempList[["psi_t"]]
+    # toc()
+
+    tic("r cond exp")
     if (errorsY & errorsX) {
-      tic("while both cond")
+      # tic("while both cond")
       ### P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*) -----------------------------
       psi_num <- c(pY_X * pYstar) * pX
       ### Update denominator ------------------------------------------
@@ -131,9 +163,8 @@ toc()
       ### by summing over Y = 0/1 w/i each i, k ----------------------
       ### add top half of psi_t (y = 0) to bottom half (y = 1) -------
       u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[- c(1:(m * (N - n))), ]
-      toc()
-    } else if (errorsX) {
-      tic("while X 2")
+      # toc()
+    } else if (!errorsY && errorsX) {
       ### P(Y|X,C)p_kjB(X*) -------------------------------------------
       psi_num <- c(pY_X) * pX
       ### Update denominator ------------------------------------------
@@ -148,9 +179,7 @@ toc()
       ### Update the w_kyi for unvalidated subjects -------------------
       ### by summing across the splines/ columns of psi_t -------------
       w_t <- rowSums(psi_t)
-      toc()
-    } else if (errorsY) {
-      tic("while Y 2")
+    } else if (!errorsX && errorsY) {
       ### P(Y|X,C)P(Y*|Y,X,C) -----------------------------------------
       psi_num <- matrix(c(pY_X * pYstar), ncol = 1)
       #### Sum up all rows per id (e.g. sum over y) -------------------
@@ -161,10 +190,10 @@ toc()
       psi_t <- psi_num / psi_denom
       ### Update the w_kyi for unvalidated subjects -------------------
       w_t <- psi_t
-      toc()
     }
+toc()
 
-    browser()
+
     ### ----------------------------- Estimate conditional expectations
     # ---------------------------------------------------------- E Step
     ###################################################################
@@ -174,15 +203,14 @@ toc()
     ###################################################################
     if (errorsY) {
       ## Update gamma using weighted logistic regression ----------------
-      tic("M-step Y cpp")
+      # tic("M-step Y cpp")
       w_t <- lengthenWT(w_t, n)
       muVector <- calculateMu(gamma_design_mat, prev_gamma)
       gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[,c(Y_unval)], muVector)
       hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n)
-      toc()
+      # toc()
 
-
-      tic("M-step Y")
+      # tic("M-step Y")
       # w_t <- c(rep(1, n), w_t)
       # mu <- gamma_design_mat %*% prev_gamma
       # gradient_gamma_R <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
@@ -196,7 +224,7 @@ toc()
       #   warning("cpp and R are significantly different!")
       #   browser()
       # }
-      toc()
+      # toc()
 
       new_gamma <- tryCatch(expr = prev_gamma - (solve(hessian_gamma) %*% gradient_gamma),
                             error = function(err) {
@@ -204,7 +232,10 @@ toc()
                             })
       if (any(is.na(new_gamma))) {
         suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
+        browser()
       }
+      # print(it)
+      # print(new_gamma)
       # Check for convergence -----------------------------------------
       gamma_conv <- abs(new_gamma - prev_gamma) < TOL
       ## ---------------- Update gamma using weighted logistic regression
@@ -212,23 +243,23 @@ toc()
     ###################################################################
     ## Update {p_kj} --------------------------------------------------
     if (errorsX & errorsY) {
-      tic("M-step both")
+      # tic("M-step both")
       ### Update numerators by summing u_t over i = 1, ..., N ---------
       new_p_num <- p_val_num +
         rowsum(u_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
       new_p <- t(t(new_p_num) / colSums(new_p_num))
       ### Check for convergence ---------------------------------------
       p_conv <- abs(new_p - prev_p) < TOL
-      toc()
+      # toc()
     } else if (errorsX) {
-      tic("M-step X")
+      # tic("M-step X")
       ### Update numerators by summing u_t over i = 1, ..., N ---------
       new_p_num <- p_val_num +
         rowsum(psi_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
       new_p <- t(t(new_p_num) / colSums(new_p_num))
       ### Check for convergence ---------------------------------------
       p_conv <- abs(new_p - prev_p) < TOL
-      toc()
+      # toc()
     }
     else { p_conv <- TRUE }
     ## -------------------------------------------------- Update {p_kj}
@@ -245,6 +276,7 @@ toc()
     if (errorsX) { prev_p <- new_p }
     #  ------------------------------- Update values for next iteration
   }
+  toc()
 
   tic("return profile_out")
   if(it == MAX_ITER & !CONVERGED) {
@@ -257,6 +289,8 @@ toc()
   if (!errorsX) { new_p <- NA }
   toc()
   # ---------------------------------------------- Estimate theta using EM
+
+
   return(list("psi_at_conv" = psi_t,
               "gamma_at_conv" = new_gamma,
               "p_at_conv" = new_p,

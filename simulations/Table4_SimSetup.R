@@ -148,3 +148,4 @@ se_smle <- smle$Coefficients$SE[2]
 # without cpp: >300 sec
 # June 24 2021: 220.46 sec
 # June 29 2021: 176.23 sec
+# July 15 2021: 155.47 sec
