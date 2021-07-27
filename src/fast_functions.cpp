@@ -293,7 +293,6 @@ arma::mat pXCalc(
 }
 
 // UNUSED
-// [[Rcpp::export]]
 List conditionalExpectations(const bool& errorsX,
   const bool& errorsY,
   const arma::mat& pX,
@@ -449,7 +448,7 @@ List conditionalExpectations(const bool& errorsX,
   return List::create(Named("w_t")=w_t, Named("u_t")=u_t, Named("psi_t")=psi_t);
 }
 
-// [[Rcpp::export]]
+// UNUSED
 List profileOutLoop(
   const int& MAX_ITER,
   const bool& errorsX,
