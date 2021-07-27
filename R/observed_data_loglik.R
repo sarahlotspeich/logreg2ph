@@ -30,7 +30,8 @@ observed_data_loglik <- function(N, n, Y_unval = NULL, Y_val = NULL, X_unval = N
   ## ------ If unvalidated variable was left blank, assume error-free
   # ----------------------------------------- Determine error setting
 
-  if (errorsX) {
+  if (errorsX) 
+  {
     #sn <- ncol(p)
     m <- nrow(p)
   }
@@ -38,28 +39,22 @@ observed_data_loglik <- function(N, n, Y_unval = NULL, Y_val = NULL, X_unval = N
   # For validated subjects --------------------------------------------------------
   #################################################################################
   ## Sum over log[P_theta(Yi|Xi)] -------------------------------------------------
-tic("validated subjects - cpp")
-  # p_cpp <- sumOverLogPTheta(comp_dat_all[c(1:n), theta_pred], comp_dat_all[c(1:n), c(Y_val)], theta)
-  toc()
-  tic('validated subjects')
   pY_X <- 1 / (1 + exp(-as.numeric((cbind(int = 1, comp_dat_all[c(1:n), theta_pred]) %*% theta))))
   pY_X <- ifelse(as.vector(comp_dat_all[c(1:n), c(Y_val)]) == 0, 1 - pY_X, pY_X)
   return_loglik <- sum(log(pY_X))
-  toc()
   ## ------------------------------------------------- Sum over log[P_theta(Yi|Xi)]
   #################################################################################
-  tic("errorsY")
-  if (errorsY) {
+  if (errorsY) 
+  {
     ## Sum over log[P(Yi*|Xi*,Yi,Xi)] -----------------------------------------------
     pYstar <- 1 / (1 + exp(-as.numeric((cbind(int = 1, comp_dat_all[c(1:n), gamma_pred]) %*% gamma))))
     pYstar <- ifelse(as.vector(comp_dat_all[c(1:n), Y_unval]) == 0, 1 - pYstar, pYstar)
     return_loglik <- return_loglik + sum(log(pYstar))
     ## ----------------------------------------------- Sum over log[P(Yi*|Xi*,Yi,Xi)]
   }
-  toc()
   #################################################################################
-  tic('errorsX')
-  if (errorsX) {
+  if (errorsX) 
+  {
     ## Sum over I(Xi=xk)Bj(Xi*)log p_kj ---------------------------------------------
     pX <- p[comp_dat_all[c(1:n), "k"], ]
     log_pX <- log(pX)
@@ -67,46 +62,49 @@ tic("validated subjects - cpp")
     return_loglik <- return_loglik + sum(comp_dat_all[c(1:n), Bspline] * log_pX)
     ## --------------------------------------------- Sum over I(Xi=xk)Bj(Xi*)log q_kj
   }
-  toc()
   #################################################################################
   # -------------------------------------------------------- For validated subjects
 
   # For unvalidated subjects ------------------------------------------------------
   ## Calculate P_theta(y|x) for all (y,xk) ----------------------------------------
-  tic("unvalidated")
   pY_X <- 1 / (1 + exp(-as.numeric((cbind(int = 1, comp_dat_all[-c(1:n), theta_pred]) %*% theta))))
   pY_X[which(comp_dat_all[-c(1:n), Y_val] == 0)] <- 1 - pY_X[which(comp_dat_all[-c(1:n), Y_val] == 0)]
-  toc()
   ## ---------------------------------------- Calculate P_theta(y|x) for all (y,xk)
   ################################################################################
-  tic("errorsY")
-  if (errorsY) {
+  if (errorsY) 
+  {
     ## Calculate P(Yi*|Xi*,y,xk) for all (y,xk) ------------------------------------
     pYstar <- 1 / (1 + exp(-as.numeric((cbind(int = 1, comp_dat_all[-c(1:n), gamma_pred]) %*% gamma))))
     pYstar[which(comp_dat_all[-c(1:n), Y_unval] == 0)] <- 1 - pYstar[which(comp_dat_all[-c(1:n), Y_unval] == 0)]
     ## ------------------------------------ Calculate P(Yi*|Xi*,y,xk) for all (y,xk)
-  } else {
+  } 
+  else
+  {
     pYstar <- rep(1, nrow(comp_dat_all[-c(1:n), ]))
   }
-  toc()
   ################################################################################
-  tic("errorsX")
-  if (errorsX) {
+  if (errorsX) 
+  {
     ## Calculate Bj(Xi*) p_kj for all (k,j) ----------------------------------------
     pX <- p[comp_dat_all[-c(1:n), "k"], ]
     ## ---------------------------------------- Calculate Bj(Xi*) p_kj for all (k,j)
-  } else {
+  } 
+  else 
+  {
     pX <- rep(1, nrow(comp_dat_all[-c(1:n), ]))
   }
-  toc()
   ################################################################################
   ## Calculate sum of P(y|xk) x P(Y*|X*,y,xk) x Bj(X*) x p_kj --------------------
-  tic("calculate sum")
-  if (errorsY & errorsX) {
+  if (errorsY & errorsX) 
+  {
     person_sum <- rowsum(c(pY_X * pYstar * pX) * comp_dat_all[-c(1:n), Bspline], group = rep(seq(1, (N - n)), times = 2 * m))
-  } else if (errorsY) {
+  } 
+  else if (errorsY) 
+  {
     person_sum <- rowsum(c(pY_X * pYstar), group = rep(seq(1, (N - n)), times = 2))
-  } else if (errorsX) {
+  } 
+  else if (errorsX) 
+  {
     person_sum <- rowsum(c(pY_X * pX) * comp_dat_all[-c(1:n), Bspline], group = rep(seq(1, (N - n)), times = m))
   }
   person_sum <- rowSums(person_sum)
@@ -114,7 +112,6 @@ tic("validated subjects - cpp")
   log_person_sum[log_person_sum == -Inf] <- 0
   ## And sum over them all -------------------------------------------------------
   return_loglik <- return_loglik + sum(log_person_sum)
-  toc()
   ################################################################################
   # ----------------------------------------------------- For unvalidated subjects
   return(return_loglik)

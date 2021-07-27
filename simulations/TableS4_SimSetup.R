@@ -108,8 +108,7 @@ B[which(Xa == 0),1:(0.75 * nsieve)] <- splines::bs(x = Xbstar[which(Xa == 0)], d
 B[which(Xa == 1),(0.75 * nsieve + 1):nsieve] <- splines::bs(x = Xbstar[which(Xa == 1)], df = 0.25 * nsieve, Boundary.knots = range(Xbstar[which(Xa == 1)]), intercept = TRUE)
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
-library("logreg2ph")
-tic("whole thing")
+# library("logreg2ph")
 
 smle <- logreg2ph(Y_unval = NULL,
                   Y_val = "Y",
@@ -122,6 +121,5 @@ smle <- logreg2ph(Y_unval = NULL,
                   noSE = FALSE,
                   MAX_ITER = 1000,
                   TOL = 1E-4)
-toc()
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]

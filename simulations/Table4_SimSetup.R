@@ -121,31 +121,30 @@ B[which(Xa == 1),(0.75 * nsieve + 1):nsieve] <- splines::bs(x = Xbstar[which(Xa 
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 
-library(logreg2ph)
-library(tictoc)
-library(Rcpp)
-library(RcppEigen)
-tic("the whole thing")
-smle <- logreg2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa", Validated = "V", Bspline = colnames(B),
-                  data = sdat, noSE = FALSE, MAX_ITER = 1000, TOL = 1E-4)
-toc()
-# cpp_smle <- logreg2ph_vectors(Y_unval = Ystar,
-#                           Y_val = Y,
-#                           X_unval = Xbstar,
-#                           X_val = Xb,
-#                           C = Xa,
-#                           Validated = V,
-#                           Bspline = sdat[,colnames(B)],
-#                           data = sdat,
-#                           noSE = FALSE,
-#                           MAX_ITER = 1000,
-#                           TOL = 1E-4)
+smle <- logreg2ph(Y_unval = "Ystar",
+                  Y_val = "Y",
+                  X_unval = "Xbstar",
+                  X_val = "Xb",
+                  C = "Xa",
+                  Validated = "V",
+                  Bspline = colnames(B),
+                  data = sdat,
+                  noSE = FALSE,
+                  MAX_ITER = 1000,
+                  TOL = 1E-4)
+
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
 
 
 
-# without cpp: >300 sec
+# without cpp:  311.38 sec
 # June 24 2021: 220.46 sec
 # June 29 2021: 176.23 sec
 # July 15 2021: 155.47 sec
+# July 22 2021: 141.77 sec
+# July 23 2021: 114.31 sec
+# July 26 2021: 118.08 sec
+#       min       lq     mean   median       uq      max  neval
+#   97.01602 102.7917 107.2892 106.3271 111.1261 118.6213    10
+

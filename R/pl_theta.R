@@ -26,7 +26,6 @@
 
 pl_theta <- function(k, theta, h_N, n, N, Y_unval, Y_val, X_unval, X_val, C, Bspline, comp_dat_all,
                         theta_pred, gamma_pred, gamma0 = NULL, p0 = NULL, p_val_num = NULL, TOL, MAX_ITER) {
-  tic("pl-theta: profile out")
   pert <- theta
   pert[k] <- pert[k] + h_N
   pl_params <- profile_out(theta = pert,
@@ -46,10 +45,9 @@ pl_theta <- function(k, theta, h_N, n, N, Y_unval, Y_val, X_unval, X_val, C, Bsp
                            p_val_num = p_val_num,
                            TOL = TOL,
                            MAX_ITER = MAX_ITER)
-  toc()
 
-  if(pl_params$converged) {
-    tic ("pl-theta: odl")
+  if(pl_params$converged) 
+  {
     od_loglik_pert <- observed_data_loglik(N = N,
                                            n = n,
                                            Y_unval = Y_unval,
@@ -64,7 +62,6 @@ pl_theta <- function(k, theta, h_N, n, N, Y_unval, Y_val, X_unval, X_val, C, Bsp
                                            theta = pert,
                                            gamma = pl_params$gamma,
                                            p = pl_params$p_at_conv)
-    toc()
 
   } else { od_loglik_pert <- NA }
   return(od_loglik_pert)

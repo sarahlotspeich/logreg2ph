@@ -37,9 +37,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   n <- sum(data[, Validated])
 
   # Reorder so that the n validated subjects are first ------------
-  tic("reorder data")
   data <- data[order(as.numeric(data[, Validated]), decreasing = TRUE), ]
-  toc()
 
   # Determine error setting -----------------------------------------
   ## If unvalidated variable was left blank, assume error-free ------
@@ -54,7 +52,6 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   # ----------------------------------------- Determine error setting
 
   # Add the B spline basis ------------------------------------------
-  tic("b-splines")
   if (errorsX)
   {
     sn <- ncol(data[, Bspline])
@@ -71,7 +68,6 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     }
 
   }
-  toc()
 
   # ------------------------------------------ Add the B spline basis
 
@@ -93,7 +89,6 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
 
   if (errorsX & errorsY)
   {
-    tic("Save distinct X")
     # Save distinct X -------------------------------------------------
     x_obs <- data.frame(unique(data[1:n, c(X_val)]))
     x_obs <- data.frame(x_obs[order(x_obs[, 1]), ])
@@ -101,17 +96,13 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     x_obs_stacked <- do.call(rbind, replicate(n = (N - n), expr = x_obs, simplify = FALSE))
     x_obs_stacked <- data.frame(x_obs_stacked[order(x_obs_stacked[, 1]), ])
     colnames(x_obs) <- colnames(x_obs_stacked) <- c(X_val)
-    toc()
 
-    tic("save static")
     # Save static (X*,Y*,X,Y,C) since they don't change ---------------
     comp_dat_val <- data[c(1:n), c(Y_unval, X_unval, C, Bspline, X_val, Y_val)]
     comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
     comp_dat_val <- comp_dat_val[, c(Y_unval, pred, Bspline, "k")]
     comp_dat_val <- data.matrix(comp_dat_val)
-    toc()
 
-    tic("matrices")
     # 2 (m x n)xd matrices (y=0/y=1) of each (one column per person, --
     # one row per x) --------------------------------------------------
     suppressWarnings(comp_dat_unval <- cbind(data[-c(1:n), c(Y_unval, setdiff(x = pred, y = c(Y_val, X_val)), Bspline)],
@@ -124,7 +115,6 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     comp_dat_unval <- comp_dat_unval[, c(Y_unval, pred, Bspline, "k")]
 
     comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
-    toc()
 
     # Initialize B-spline coefficients {p_kj}  ------------
     ## Numerators sum B(Xi*) over k = 1,...,m -------------
@@ -132,9 +122,9 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ## (contributions don't change) -----------------------
     p_val_num <- rowsum(x = comp_dat_val[, Bspline], group = comp_dat_val[, "k"], reorder = TRUE)
     prev_p <- p0 <-  t(t(p_val_num) / colSums(p_val_num))
-    } else if (errorsX)
-    {
-      tic("Save distinct X")
+  }
+  else if (errorsX)
+  {
     # Save distinct X -------------------------------------------------
     x_obs <- data.frame(unique(data[1:n, c(X_val)]))
     x_obs <- data.frame(x_obs[order(x_obs[, 1]), ])
@@ -142,17 +132,13 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     x_obs_stacked <- do.call(rbind, replicate(n = (N - n), expr = x_obs, simplify = FALSE))
     x_obs_stacked <- data.frame(x_obs_stacked[order(x_obs_stacked[, 1]), ])
     colnames(x_obs) <- colnames(x_obs_stacked) <- c(X_val)
-    toc()
 
-    tic("save static")
     # Save static (X*,X,Y,C) since they don't change ---------------
     comp_dat_val <- data[c(1:n), c(Y_val, pred, Bspline)]
     comp_dat_val <- merge(x = comp_dat_val, y = data.frame(x_obs, k = 1:m), all.x = TRUE)
     comp_dat_val <- comp_dat_val[, c(Y_val, pred, Bspline, "k")]
     comp_dat_val <- data.matrix(comp_dat_val)
-    toc()
 
-    tic("vectors")
     # (m x n)xd vectors of each (one column per person, one row per x) --
     suppressWarnings(
       comp_dat_unval <- data.matrix(
@@ -164,15 +150,16 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     comp_dat_unval <- comp_dat_unval[, c(Y_val, pred, Bspline, "k")]
 
     comp_dat_all <- rbind(comp_dat_val, comp_dat_unval)
-    toc()
+
     # Initialize B-spline coefficients {p_kj}  ------------
     ## Numerators sum B(Xi*) over k = 1,...,m -------------
     ## Save as p_val_num for updates ----------------------
     ## (contributions don't change) -----------------------
     p_val_num <- rowsum(x = comp_dat_val[, Bspline], group = comp_dat_val[, "k"], reorder = TRUE)
     prev_p <- p0 <-  t(t(p_val_num) / colSums(p_val_num))
-    } else if (errorsY)
-    {
+  }
+  else if (errorsY)
+  {
     # Save static (Y*,X,Y,C) since they don't change ------------------
     comp_dat_val <- data.matrix(data[c(1:n), c(Y_unval, pred)])
 
@@ -191,14 +178,14 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   }
 
 
-  theta_formula <- as.formula(paste0(Y_val, "~", paste(theta_pred, collapse = "+")))
-  theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
+    theta_formula <- as.formula(paste0(Y_val, "~", paste(theta_pred, collapse = "+")))
+    theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
 
-  if (errorsY)
-  {
-    gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
-    gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
-  }
+    if (errorsY)
+    {
+      gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
+      gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
+    }
 
 
   # Initialize parameter values -------------------------------------
@@ -260,6 +247,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
     ### P(X|X*) -------------------------------------------------------
+    # cpppX <- pXCalc(n, comp_dat_unval, errorsX, errorsY, prev_p, rep(seq(1, m), each = (N - n))-1, match(Bspline, colnames(comp_dat_unval))-1, seq(1, nrow(comp_dat_unval))-1)
     if (errorsX & errorsY)
     {
       ### p_kj ------------------------------------------------------
@@ -267,18 +255,27 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       ### multiply by the B-spline terms
       pX <- prev_p[rep(rep(seq(1, m), each = (N - n)), times = 2), ] * comp_dat_unval[, Bspline]
       ### ---------------------------------------------------------- p_kj
-      } else if (errorsX)
-      {
+    }
+    else if (errorsX)
+    {
       ### p_kj ----------------------------------------------------------
       ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
       ### multiply by the B-spline terms
-      pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_unval[, Bspline]
+      pX <- prev_p[rep(seq(1, m), each = (N - n)), ]  * comp_dat_unval[, Bspline]
       ### ---------------------------------------------------------- p_kj
     } #else if (errorsY) {
       #pX <- rep(1, times = nrow(comp_dat_unval))
     #}
 
-    tic("estimate conditional")
+    # tic("cond exp cpp")
+    # condExp <- conditionalExpectations(errorsX, errorsY, pX, pY_X, pYstar, N-n, m)
+    # CPPw_t <- condExp[["w_t"]]
+    # CPPu_t <- condExp[["u_t"]]
+    # CPPpsi_t <- condExp[["psi_t"]]
+    # toc()
+
+    # R is faster than cpp
+
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
     ### Estimate conditional expectations -----------------------------
@@ -286,7 +283,6 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     {
       ### P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*) -----------------------------
       psi_num <- c(pY_X * pYstar) * pX
-      # psi_num <- elementMultiply(pX, elementMultiplyVec(pY_X, pYstar))
       ### Update denominator ------------------------------------------
       #### Sum up all rows per id (e.g. sum over xk/y) ----------------
       psi_denom <- rowsum(psi_num, group = rep(seq(1, (N - n)), times = 2 * m))
@@ -332,7 +328,11 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       ### Update the w_kyi for unvalidated subjects -------------------
       w_t <- psi_t
     }
-    toc()
+    # if (max(c(abs(CPPu_t - u_t), abs(CPPw_t - w_t), abs(CPPpsi_t - psi_t))) > 1e-10)
+    # {
+    #   warning("cpp and R are significantly different!")
+    #   browser()
+    # }
     ### ----------------------------- Estimate conditional expectations
     # ---------------------------------------------------------- E Step
     ###################################################################
@@ -342,14 +342,12 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     ###################################################################
     ## Update theta using weighted logistic regression ----------------
     ### Gradient ------------------------------------------------------
-    tic ("m-step cpp")
     w_t <- lengthenWT(w_t, n)
 
     # calculateMu returns exp(-mu) / (1 + exp(-mu))
     muVector <- calculateMu(theta_design_mat, prev_theta)
     gradient_theta <- calculateGradient(w_t, n, theta_design_mat, comp_dat_all[, Y_val], muVector)
     hessian_theta <- calculateHessian(theta_design_mat, w_t, muVector, n);
-    toc()
 
 
     # tic("m-step R")
@@ -377,7 +375,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     if (any(is.na(new_theta)))
     {
       suppressWarnings(new_theta <- matrix(glm(formula = theta_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
-      browser()
+      # browser()
     }
 
     ### Check for convergence -----------------------------------------
@@ -385,17 +383,15 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
 
     ## --------------------------------------------------- Update theta
     ###################################################################
-    tic("theta")
     if (errorsY)
     {
       # w_t is already the proper size
 
       ## Update gamma using weighted logistic regression ----------------
-      tic("gamma cpp")
       muVector <- calculateMu(gamma_design_mat, prev_gamma)
       gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[, c(Y_unval)], muVector)
       hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n)
-toc()
+
       # mu <- gamma_design_mat %*% prev_gamma
       # gradient_gamma_R <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
 
@@ -409,7 +405,6 @@ toc()
       # ### Hessian -------------------------------------------------------
       # post_multiply <- c(w_t * muVector * (muVector - 1)) * gamma_design_mat
       # hessian_gamma <- apply(gamma_design_mat, MARGIN = 2, FUN = hessian_row, pm = post_multiply)
-      tic("gamma hessian checking")
       new_gamma <- tryCatch(expr = prev_gamma - (solve(hessian_gamma) %*% gradient_gamma),
         error = function(err)
         {
@@ -423,11 +418,9 @@ toc()
       # Check for convergence -----------------------------------------
       gamma_conv <- abs(new_gamma - prev_gamma) < TOL
       ## ---------------- Update gamma using weighted logistic regression
-      toc()
     }
     else
     { gamma_conv <- TRUE }
-    toc()
 
     ###################################################################
     ## Update {p_kj} --------------------------------------------------
@@ -503,7 +496,6 @@ toc()
   if(CONVERGED)
   { CONVERGED_MSG <- "Converged" }
 
-  tic("noSE")
   # ---------------------------------------------- Estimate theta using EM
   if(noSE)
   {
@@ -518,7 +510,6 @@ toc()
     }
 
     ## Calculate pl(theta) -------------------------------------------------
-    tic("observed data loglik")
     od_loglik_theta <- observed_data_loglik(N = N,
      n = n,
      Y_unval = Y_unval,
@@ -533,7 +524,6 @@ toc()
      theta = new_theta,
      gamma = new_gamma,
      p = new_p)
-    toc()
 
     return(list(Coefficients = data.frame(Coefficient = new_theta,
       SE = NA),
@@ -560,7 +550,6 @@ toc()
 
 
     ## Calculate pl(theta) -------------------------------------------------
-    tic("observed data loglik - not nose")
     od_loglik_theta <- observed_data_loglik(N = N,
       n = n,
       Y_unval = Y_unval,
@@ -575,12 +564,9 @@ toc()
       theta = new_theta,
       gamma = new_gamma,
       p = new_p)
-    toc()
 
-    tic("no nose -etc")
     I_theta <- matrix(od_loglik_theta, nrow = nrow(new_theta), ncol = nrow(new_theta))
 
-    tic("sapply")
     single_pert_theta <- sapply(X = seq(1, ncol(I_theta)),
       FUN = pl_theta,
       theta = new_theta,
@@ -601,7 +587,6 @@ toc()
       p_val_num = p_val_num,
       TOL = TOL,
       MAX_ITER = MAX_ITER)
-    toc()
 
     if (any(is.na(single_pert_theta)))
     {
@@ -617,12 +602,9 @@ toc()
       I_theta <- I_theta - spt_wide - t(spt_wide)
       SE_CONVERGED <- TRUE
     }
-    toc()
 
-    tic("for loop")
     for (c in 1:ncol(I_theta))
     {
-      tic('sapply')
       pert_theta <- new_theta
       pert_theta[c] <- pert_theta[c] + h_N
       double_pert_theta <- sapply(X = seq(c, ncol(I_theta)),
@@ -645,23 +627,18 @@ toc()
         p_val_num = p_val_num,
         MAX_ITER = MAX_ITER,
         TOL = TOL)
-      toc()
 
-      tic("matrix manage")
       dpt <- matrix(0, nrow = nrow(I_theta), ncol = ncol(I_theta))
       dpt[c,c] <- double_pert_theta[1] #Put double on the diagonal
       if(c < ncol(I_theta))
       {
         ## And fill the others in on the cth row/ column
-        tic("fill")
         dpt[c, -(1:c)] <- dpt[-(1:c), c] <- double_pert_theta[-1]
-        toc()
       }
 
       I_theta <- I_theta + dpt
-      toc()
+      # print(I_theta)
     }
-    toc()
 
     I_theta <- h_N ^ (- 2) * I_theta
 
@@ -682,9 +659,7 @@ toc()
       warning = function(w)
       {
         matrix(NA, nrow = nrow(prev_theta))
-      }
-
-      )
+        })
     if (any(is.na(se_theta)))
     {
       SE_CONVERGED <- FALSE
@@ -694,7 +669,6 @@ toc()
       TRUE
     }
 
-    toc()
     return(list(Coefficients = data.frame(Coefficient = new_theta,
       SE = se_theta),
     I_theta = I_theta,
