@@ -91,7 +91,7 @@ MatrixXd fastMatrixMultiply(const MatrixXd& mat1, const MatrixXd& mat2)
 arma::mat matTimesVec(arma::mat mat, arma::vec v)
 {
   // Ensure the vector is the right length
-  // Never an issue in this project, but if you're copy+pasting this code into yours, 
+  // Never an issue in this project, but if you're copy+pasting this code into yours,
   // you may want to uncomment the error checking
   // if (v.n_elem < mat.n_rows)
   // {
@@ -224,7 +224,6 @@ arma::mat calculateHessian(
 
 // [[Rcpp::export]]
 arma::vec pYstarCalc(
-  const bool& errorsY,
   const arma::mat& gamma_design_mat,
   const int& n,
   const int& excludeRows,
@@ -232,26 +231,24 @@ arma::vec pYstarCalc(
   const arma::mat& comp_dat_all,
   const int& Y_unval_index  )
 {
+
   arma::vec pYstar;
   arma::mat mu_gamma;
-  if (errorsY)
+
+  // same as gamma_design_mat[-c(1:n),]
+  // get the elements of gamma_design_mat excluding the first excludeRows rows
+  arma::mat filtered_gamma_design_mat = gamma_design_mat.rows(excludeRows, gamma_design_mat.n_rows-1);
+
+  mu_gamma = filtered_gamma_design_mat * prev_gamma;
+  pYstar = 1 / (1 + exp(mu_gamma * -1));
+
+  arma::vec checkVector = comp_dat_all.col(Y_unval_index).rows(n, comp_dat_all.n_rows-1);
+  for (int i = 0; i < pYstar.size(); ++i)
   {
-    // same as gamma_design_mat[-c(1:n),]
-    // get the elements of gamma_design_mat excluding the first excludeRows rows
-    arma::mat filtered_gamma_design_mat = gamma_design_mat.rows(excludeRows, gamma_design_mat.n_rows-1);
-
-    mu_gamma = filtered_gamma_design_mat * prev_gamma;
-    pYstar = 1 / (1 + exp(mu_gamma * -1));
-
-    arma::vec checkVector = comp_dat_all.col(Y_unval_index).rows(n, comp_dat_all.n_rows-1);
-    for (int i = 0; i < pYstar.size(); ++i)
+    if (checkVector(i) == 0)
     {
-      if (checkVector(i) == 0)
-      {
-        pYstar(i) = 1 - pYstar(i);
-      }
+      pYstar(i) = 1 - pYstar(i);
     }
-
   }
 
   return pYstar;
@@ -271,7 +268,7 @@ arma::mat pXCalc(
   arma::mat pX(1,1);
   arma::mat prevRows = prev_p.rows(indices);
 
-  if (errorsX and errorsY) 
+  if (errorsX and errorsY)
   {
     // need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
     // multiply by the B-spline terms
@@ -281,8 +278,8 @@ arma::mat pXCalc(
 
     // element-wise multiplication
     pX = joinedPrevP % comp_dat_all.submat(rowIndices, Bspline_index);
-  } 
-  else if (errorsX) 
+  }
+  else if (errorsX)
   {
     // need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
     // multiply by the B-spline terms
@@ -486,8 +483,11 @@ List profileOutLoop(
   {
     // E Step
     // P(Y*|X*,Y,X)
-
-    arma::vec pYstar = pYstarCalc(errorsY, gamma_design_mat, n, n, prev_gamma, comp_dat_all, Y_unval_index);
+    arma::vec pYstar;
+    if (errorsY)
+    {
+      pYstar = pYstarCalc(gamma_design_mat, n, n, prev_gamma, comp_dat_all, Y_unval_index);
+    }
     // pYstar is correct at this point - June 30
 
 
@@ -497,7 +497,7 @@ List profileOutLoop(
 
     arma::mat pX = pXCalc(n, comp_dat_all, errorsX, errorsY, prev_p, indices, Bspline_index, prev_p_indices);
     // pX is exactly correct at this point - July 6
-    
+
 
     //   P(X|X*)
     //   Estimate conditional expectations
@@ -527,7 +527,7 @@ List profileOutLoop(
       const arma::mat gradient_gamma = calculateGradient(w_t, n, gamma_design_mat, comp_dat_all.col(Y_unval_index), muVector);
       arma::mat hessian_gamma = calculateHessian(gamma_design_mat, w_t, muVector, n);
 
-    
+
       // Gradient
       // Hessian
       try

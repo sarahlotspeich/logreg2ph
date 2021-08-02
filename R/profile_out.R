@@ -43,8 +43,8 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
   theta_design_mat <- cbind(int = 1, comp_dat_all[-c(1:n), theta_pred])
 
   # For the E-step, save static P(Y|X) for unvalidated --------------
-  pY_X <- pYstarCalc(TRUE, theta_design_mat, n, 0, theta, comp_dat_all, match(Y_val, colnames(comp_dat_all))-1)
 
+  pY_X <- pYstarCalc(theta_design_mat, n, 0, theta, comp_dat_all, match(Y_val, colnames(comp_dat_all))-1)
   if (errorsY)
   {
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
@@ -61,7 +61,10 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
 
     # E Step ----------------------------------------------------------
     # P(Y*|X*,Y,X) ---------------------------------------------------
-    pYstar <- pYstarCalc(errorsY, gamma_design_mat, n, n, prev_gamma, comp_dat_all, match(Y_unval, colnames(comp_dat_all))-1)
+    if (errorsY)
+    {
+      pYstar <- pYstarCalc(gamma_design_mat, n, n, prev_gamma, comp_dat_all, match(Y_unval, colnames(comp_dat_all))-1)
+    }
 
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################

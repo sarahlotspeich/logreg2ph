@@ -135,16 +135,3 @@ smle <- logreg2ph(Y_unval = "Ystar",
 
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
-
-
-
-# without cpp:  311.38 sec
-# June 24 2021: 220.46 sec
-# June 29 2021: 176.23 sec
-# July 15 2021: 155.47 sec
-# July 22 2021: 141.77 sec
-# July 23 2021: 114.31 sec
-# July 26 2021: 118.08 sec
-#       min       lq     mean   median       uq      max  neval
-#   97.01602 102.7917 107.2892 106.3271 111.1261 118.6213    10
-
