@@ -26,36 +26,34 @@ observed_data_loglik(
 
 \item{n}{Phase II sample size}
 
-\item{Y_unval}{Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.}
+\item{Y_unval}{Column with the unvalidated outcome (can be name or numeric index)}
 
-\item{Y_val}{Column names with the validated outcome.}
+\item{Y_val}{Column with the validated outcome (can be name or numeric index)}
 
-\item{X_unval}{Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
+\item{X_unval}{Column(s) with the unvalidated predictors (can be name or numeric index)}
 
-\item{X_val}{Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
+\item{X_val}{Column(s) with the validated predictors (can be name or numeric index)}
 
-\item{C}{(Optional) Column name(s) with additional error-free covariates.}
+\item{C}{(Optional) Column(s) with additional error-free covariates (can be name or numeric index)}
 
-\item{Bspline}{Vector of column names containing the B-spline basis functions.}
+\item{Bspline}{Vector of columns containing the B-spline basis functions (can be name or numeric index)}
 
 \item{comp_dat_all}{Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)}
 
-\item{theta_pred}{Vector of columns in \code{comp_dat_all} that pertain to the predictors in the analysis model.}
+\item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
 
-\item{gamma_pred}{Vector of columns in \code{comp_dat_all} that pertain to the predictors in the outcome error model.}
+\item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
 
 \item{theta}{Parameters for the analysis model (a column vector)}
 
 \item{gamma}{Parameters for the outcome error model (a column vector)}
 
 \item{p}{B-spline coefficients for the approximated covariate error model (a matrix)}
-
-\item{Validated}{Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.}
 }
 \value{
 Scalar value of the function
 }
 \description{
-This function returns the value of the observed-data log-likelihood (equation (2) in Lotspeich et al. (2021))
+This function returns the value of the observed-data log-likelihood (equation (2) in Lotspeich et al. (2020))
 for a given dataset and parameter values \code{theta}, \code{gamma}, and \code{p}.
 }

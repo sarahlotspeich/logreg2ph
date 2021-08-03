@@ -107,7 +107,7 @@ se_rake <- sqrt(diag(vcov(rake)))[2]
 ## (5) MLE -------------------------------------------------
 ### Script: two-phase log-likelihood specification adapted from Tang et al. (2015)
 ### Get the script here https://github.com/sarahlotspeich/logreg2ph/blob/master/simulations/Tang_twophase_loglik_binaryX.R
-source("Tang_twophase_loglik_binaryX.R")
+source("simulations/Tang_twophase_loglik_binaryX.R")
 fit_Tang <- nlm(f = Tang_twophase_loglik,
                 p = rep(0, 12),
                 hessian = TRUE,

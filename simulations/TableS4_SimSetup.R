@@ -13,6 +13,7 @@ n <- 250 # Phase-II/audit size = n
 # Generate true values Y, Xb, Xa ----------------------------
 Xa <- rbinom(n = N, size = 1, prob = 0.5)
 Xb <- rnorm(n = N, mean = 0, sd = 1)
+
 beta1 <- - 2 # vary between [-2, 2]
 Y <- rbinom(n = N, size = 1, prob = (1 + exp(-(- 1 + beta1 * Xb - 0.5 * Xa))) ^ (- 1))
 
@@ -26,7 +27,7 @@ Xbstar <- Xb + U
 # Choose audit design: SRS or Validated case-control ------
 audit <- "SRS" #or "Validated case-control"
 
-# Draw audit of siXae n based on design --------------------
+# Draw audit of size n based on design --------------------
 ## V is a TRUE/FALSE vector where TRUE = validated --------
 if(audit == "SRS") {
   V <- seq(1, N) %in% sample(x = seq(1, N), size = n, replace = FALSE)
@@ -108,7 +109,8 @@ B[which(Xa == 0), 1:(0.75 * nsieve)] <- splines::bs(x = Xbstar[which(Xa == 0)], 
 B[which(Xa == 1), (0.75 * nsieve + 1):nsieve] <- splines::bs(x = Xbstar[which(Xa == 1)], df = 0.25 * nsieve, Boundary.knots = range(Xbstar[which(Xa == 1)]), intercept = TRUE)
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
-library("logreg2ph")
+# library("logreg2ph")
+
 smle <- logreg2ph(Y_unval = NULL,
                   Y_val = "Y",
                   X_unval = "Xbstar",
