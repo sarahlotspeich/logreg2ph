@@ -5,6 +5,7 @@ library(Rcpp)
 library(RcppEigen)
 library(RcppArmadillo)
 library(logreg2ph)
+library(testthat)
 
 source("R/hessian_row.R")
 source("R/logreg2ph.R")
