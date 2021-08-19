@@ -1,13 +1,13 @@
 // This definition allows us to do some big matrix multiplication (calculateHessian)
 #define ARMA_64BIT_WORD 1
 
+// [[Rcpp::depends(RcppEigen)]]
+// [[Rcpp::depends(RcppArmadillo)]]
 
 #include <RcppArmadillo.h>
 #include <RcppEigen.h>
 #include <stdlib.h>
 
-// [[Rcpp::depends(RcppEigen)]]
-// [[Rcpp::depends(RcppArmadillo)]]
 
 using namespace Rcpp;
 using namespace Eigen;
