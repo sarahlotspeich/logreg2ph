@@ -14,7 +14,6 @@ using namespace Eigen;
 using namespace std;
 
 typedef Map<MatrixXd> MapMatrix;
-typedef Map<VectorXd> MapVector;
 
 
 // CONVERTING TYPE HELPER FUNCTIONS
