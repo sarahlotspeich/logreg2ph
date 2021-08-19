@@ -121,3 +121,4 @@ smle <- logreg2ph(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "X
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
 
+# July 16 2021: 162.19 sec
