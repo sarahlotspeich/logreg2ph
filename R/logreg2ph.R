@@ -178,14 +178,14 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   }
 
 
-    theta_formula <- as.formula(paste0(Y_val, "~", paste(theta_pred, collapse = "+")))
-    theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
+  theta_formula <- as.formula(paste0(Y_val, "~", paste(theta_pred, collapse = "+")))
+  theta_design_mat <- cbind(int = 1, comp_dat_all[, theta_pred])
 
-    if (errorsY)
-    {
-      gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
-      gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
-    }
+  if (errorsY)
+  {
+    gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
+    gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
+  }
 
 
   # Initialize parameter values -------------------------------------
@@ -219,6 +219,10 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     CONVERGED <- FALSE
     CONVERGED_MSG <- "Unknown"
     it <- 1
+
+  # pre-allocate memory for loop variables
+  mus_theta <- vector("numeric", nrow(theta_design_mat) * ncol(prev_theta))
+  mus_gamma <- vector("numeric", nrow(gamma_design_mat) * ncol(prev_gamma))
 
   # Estimate theta using EM -------------------------------------------
   while(it <= MAX_ITER & !CONVERGED)
@@ -347,7 +351,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     # calculateMu returns exp(-mu) / (1 + exp(-mu))
     muVector <- calculateMu(theta_design_mat, prev_theta)
     gradient_theta <- calculateGradient(w_t, n, theta_design_mat, comp_dat_all[, Y_val], muVector)
-    hessian_theta <- calculateHessian(theta_design_mat, w_t, muVector, n);
+    hessian_theta <- calculateHessian(theta_design_mat, w_t, muVector, n, mus_theta);
 
 
     # tic("m-step R")
@@ -390,7 +394,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       ## Update gamma using weighted logistic regression ----------------
       muVector <- calculateMu(gamma_design_mat, prev_gamma)
       gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[, c(Y_unval)], muVector)
-      hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n)
+      hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n, mus_gamma)
 
       # mu <- gamma_design_mat %*% prev_gamma
       # gradient_gamma_R <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
@@ -671,7 +675,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
 
     return(list(Coefficients = data.frame(Coefficient = new_theta,
       SE = se_theta),
-    I_theta = I_theta,
+    v_cov = cov_theta,
     converged = CONVERGED,
     se_converged = SE_CONVERGED,
     converged_msg = CONVERGED_MSG,
