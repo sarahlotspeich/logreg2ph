@@ -42,9 +42,9 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
 
   theta_design_mat <- cbind(int = 1, comp_dat_all[-c(1:n), theta_pred])
 
-  # For the E-step, save static P(Y|X) for unvalidated --------------
 
-  pY_X <- pYstarCalc(theta_design_mat, n, 0, theta, comp_dat_all, match(Y_val, colnames(comp_dat_all))-1)
+  # For the E-step, save static P(Y|X) for unvalidated --------------
+  pY_X <- pYstarCalc(theta_design_mat, n, 0, theta, comp_dat_all, match(Y_val, colnames(comp_dat_all))-1, vector("numeric",nrow(theta_design_mat)), vector("numeric",nrow(theta_design_mat)))
   if (errorsY)
   {
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
@@ -55,6 +55,20 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
+  # pre-allocate memory for our loop variables
+  # improves performance
+  if (errorsY)
+  {
+    pYstar <- vector(mode="numeric", length = nrow(gamma_design_mat) - n)
+    mu_gamma <- vector(mode="numeric", length = length(pYstar))
+    mus_gamma <- vector("numeric", nrow(gamma_design_mat) * ncol(prev_gamma))
+  }
+  psi_num <- matrix(,nrow = nrow(comp_dat_all)-n, ncol=length(Bspline))
+  psi_t <- matrix(,nrow = nrow(psi_num), ncol = ncol(psi_num))
+  w_t <- vector("numeric", length = nrow(psi_t))
+  u_t <- matrix(,nrow = m * (N-n), ncol = ncol(psi_t))
+  pX <- matrix(,nrow = m * (N-n) * ifelse(errorsY, 2, 1), ncol = length(Bspline))
+
   # Estimate gamma/p using EM -----------------------------------------
   while(it <= MAX_ITER & !CONVERGED)
   {
@@ -63,7 +77,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
     # P(Y*|X*,Y,X) ---------------------------------------------------
     if (errorsY)
     {
-      pYstar <- pYstarCalc(gamma_design_mat, n, n, prev_gamma, comp_dat_all, match(Y_unval, colnames(comp_dat_all))-1)
+      pYstar <- pYstarCalc(gamma_design_mat, n, n, prev_gamma, comp_dat_all, match(Y_unval, colnames(comp_dat_all))-1, pYstar, mu_gamma)
     }
 
     ### -------------------------------------------------- P(Y*|X*,Y,X)
@@ -71,7 +85,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
     ### P(X|X*) -------------------------------------------------------
 
     # these are the slowest lines in this function (13280 ms), but I can't seem to get any faster with C++
-    # pX <- pXCalc(n, comp_dat_all, errorsX, errorsY, prev_p, rep(seq(1, m), each = (N - n))-1, match(Bspline, colnames(comp_dat_all))-1, seq(n, nrow(comp_dat_all)-1))
+    # pX <- pXCalc(n, comp_dat_all[-c(1:n), Bspline], errorsX, errorsY, pX, prev_p[rep(seq(1, m), each = (N - n)), ])
     if (errorsX & errorsY) {
       ### p_kj ------------------------------------------------------
       ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
@@ -85,12 +99,17 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
       pX <- prev_p[rep(seq(1, m), each = (N - n)), ] * comp_dat_all[-c(1:n), Bspline]
       ### ---------------------------------------------------------- p_kj
     }
-
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
     ### Estimate conditional expectations -----------------------------
 
-    # cpp is slower than R for this!
+
+    # this function modifies w_t, u_t, psi_num, and psi_t internally
+    # condExp <- conditionalExpectations(errorsX, errorsY, pX, pY_X, pYstar, N - n, m, w_t, u_t, psi_num, psi_t)
+    # w_t <- condExp[["w_t"]]
+    # u_t <- condExp[["u_t"]]
+    # psi_t <- condExp[["psi_t"]]
+
 
     if (errorsY & errorsX) {
 
@@ -145,7 +164,6 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
 
     }
 
-
     ### ----------------------------- Estimate conditional expectations
     # ---------------------------------------------------------- E Step
     ###################################################################
@@ -160,7 +178,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
       w_t <- lengthenWT(w_t, n)
       muVector <- calculateMu(gamma_design_mat, prev_gamma)
       gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[,c(Y_unval)], muVector)
-      hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n)
+      hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n, mus_gamma)
 
       new_gamma <- tryCatch(expr = prev_gamma - (solve(hessian_gamma) %*% gradient_gamma),
                             error = function(err) {

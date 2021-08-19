@@ -11,9 +11,8 @@ N <- 1000 # Phase-I = N
 n <- 250 # Phase-II/audit size = n
 
 # Generate true values Y, Xb, Xa ----------------------------
-Xa <- rbinom(n = N, size = 1, prob = 0.5)
-Xb <- rnorm(n = N, mean = 0, sd = 1)
-
+Xa <- rnorm(n = N, mean = 0, sd = 1)
+Xb <- rbinom(n = N, size = 1, prob = 0.5)
 beta1 <- - 2 # vary between [-2, 2]
 Y <- rbinom(n = N, size = 1, prob = (1 + exp(-(- 1 + beta1 * Xb - 0.5 * Xa))) ^ (- 1))
 
@@ -105,8 +104,8 @@ se_rake <- sqrt(diag(vcov(rake)))[2]
 nsieve <- 32
 B <- matrix(0, nrow = N, ncol = nsieve)
 ### Stratify our B-splines on binary C ---------------------
-B[which(Xa == 0), 1:(0.75 * nsieve)] <- splines::bs(x = Xbstar[which(Xa == 0)], df = 0.75 * nsieve, Boundary.knots = range(Xbstar[which(Xa == 0)]), intercept = TRUE)
-B[which(Xa == 1), (0.75 * nsieve + 1):nsieve] <- splines::bs(x = Xbstar[which(Xa == 1)], df = 0.25 * nsieve, Boundary.knots = range(Xbstar[which(Xa == 1)]), intercept = TRUE)
+B[which(Xa == 0),1:(0.75 * nsieve)] <- splines::bs(x = Xbstar[which(Xa == 0)], df = 0.75 * nsieve, Boundary.knots = range(Xbstar[which(Xa == 0)]), intercept = TRUE)
+B[which(Xa == 1),(0.75 * nsieve + 1):nsieve] <- splines::bs(x = Xbstar[which(Xa == 1)], df = 0.25 * nsieve, Boundary.knots = range(Xbstar[which(Xa == 1)]), intercept = TRUE)
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
 # library("logreg2ph")
