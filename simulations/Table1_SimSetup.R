@@ -135,7 +135,6 @@ B[which(Xa == 1 & Xbstar == 0), 3] <- 1
 B[which(Xa == 1 & Xbstar == 1), 4] <- 1
 colnames(B) <- paste0("bs", seq(1, nsieve))
 sdat <- cbind(sdat, B)
-tic("table 1")
 smle <- logreg2ph(Y_unval = "Ystar",
                   Y_val = "Y",
                   X_unval = "Xbstar",
@@ -147,7 +146,6 @@ smle <- logreg2ph(Y_unval = "Ystar",
                   noSE = FALSE,
                   MAX_ITER = 1000,
                   TOL = 1E-4)
-toc()
 beta_smle <- smle$Coefficients$Coefficient[2]
 se_smle <- smle$Coefficients$SE[2]
 

@@ -1,90 +1,87 @@
 // This definition allows us to do some big matrix multiplication (calculateHessian)
 #define ARMA_64BIT_WORD 1
 
-// [[Rcpp::depends(RcppEigen)]]
 // [[Rcpp::depends(RcppArmadillo)]]
 
 #include <RcppArmadillo.h>
-#include <RcppEigen.h>
 #include <stdlib.h>
 
 
 using namespace Rcpp;
-using namespace Eigen;
 using namespace std;
-
-typedef Map<MatrixXd> MapMatrix;
 
 
 // CONVERTING TYPE HELPER FUNCTIONS
 // Since these work at the memory level, these are lossless with time
+// The code has since been redesigned to make these functions obsolete
 
-NumericMatrix eigenToRcpp(const MatrixXd& mat)
-{
-  SEXP s = wrap(mat);
-  NumericMatrix ret(s);
-  return ret;
-}
+// NumericMatrix eigenToRcpp(const MatrixXd& mat)
+// {
+//   SEXP s = wrap(mat);
+//   NumericMatrix ret(s);
+//   return ret;
+// }
 
-NumericVector eigenToRcpp(const VectorXd& vec)
-{
-  SEXP s = wrap(vec);
-  NumericVector ret(s);
-  return ret;
-}
+// NumericVector eigenToRcpp(const VectorXd& vec)
+// {
+//   SEXP s = wrap(vec);
+//   NumericVector ret(s);
+//   return ret;
+// }
 
-Eigen::MatrixXd armaToEigen(arma::mat arma_A) {
+// Eigen::MatrixXd armaToEigen(arma::mat arma_A) {
 
-  Eigen::MatrixXd eigen_B = Eigen::Map<Eigen::MatrixXd>(arma_A.memptr(),
-    arma_A.n_rows,
-    arma_A.n_cols);
+//   Eigen::MatrixXd eigen_B = Eigen::Map<Eigen::MatrixXd>(arma_A.memptr(),
+//     arma_A.n_rows,
+//     arma_A.n_cols);
 
-  return eigen_B;
-}
+//   return eigen_B;
+// }
 
-arma::mat eigenToArma(MatrixXd eigen_A)
-{
-  arma::mat arma_B = arma::mat(eigen_A.data(),
-    eigen_A.rows(),
-    eigen_A.cols(),
-    true,
-    false);
-  return arma_B;
-}
+// arma::mat eigenToArma(MatrixXd eigen_A)
+// {
+//   arma::mat arma_B = arma::mat(eigen_A.data(),
+//     eigen_A.rows(),
+//     eigen_A.cols(),
+//     true,
+//     false);
+//   return arma_B;
+// }
 
-arma::mat rcppToArma(NumericMatrix mat)
-{
-  arma::mat armaMat = arma::mat(mat.begin(),
-    mat.nrow(),
-    mat.ncol(),
-    false);
-  return armaMat;
-}
 
-NumericMatrix armaToRcpp(arma::mat arma_A)
-{
-  return as<NumericMatrix>(wrap(arma_A));
-}
+// arma::mat rcppToArma(NumericMatrix mat)
+// {
+//   arma::mat armaMat = arma::mat(mat.begin(),
+//     mat.nrow(),
+//     mat.ncol(),
+//     false);
+//   return armaMat;
+// }
 
-NumericVector armaToRcpp(arma::vec arma_A)
-{
-  return as<NumericVector>(wrap(arma_A));
-}
+// NumericMatrix armaToRcpp(arma::mat arma_A)
+// {
+//   return as<NumericMatrix>(wrap(arma_A));
+// }
+
+// NumericVector armaToRcpp(arma::vec arma_A)
+// {
+//   return as<NumericVector>(wrap(arma_A));
+// }
 
 
 // RECREATING R FUNCTIONALITY
 
-// [[Rcpp::export]]
-MatrixXd fastMatrixMultiply(const MapMatrix& mat1, const MapMatrix& mat2)
-{
-  return mat1 * mat2;
-}
+
+// MatrixXd fastMatrixMultiply(const MapMatrix& mat1, const MapMatrix& mat2)
+// {
+//   return mat1 * mat2;
+// }
 
 // Don't export this overloaded function, for use with non-mapped matrices only
-MatrixXd fastMatrixMultiply(const MatrixXd& mat1, const MatrixXd& mat2)
-{
-  return mat1 * mat2;
-}
+// MatrixXd fastMatrixMultiply(const MatrixXd& mat1, const MatrixXd& mat2)
+// {
+//   return mat1 * mat2;
+// }
 
 // [[Rcpp::export]]
 arma::mat matTimesVec(arma::mat mat, arma::vec v)
@@ -127,21 +124,21 @@ arma::mat matDivideVec(arma::mat mat, arma::vec v)
 }
 
 // R's rep() function
-NumericVector repeat(NumericVector x, NumericVector each)
-{
+// NumericVector repeat(NumericVector x, NumericVector each)
+// {
 
-  NumericVector myvector(sum(each));
+//   NumericVector myvector(sum(each));
 
-  for (int i = 0; i < each.size(); ++i)
-  {
-    int ind = 0;
-    for (int j = 0; j < each[i]; ++j)
-    {
-      myvector[ind++] = x[i];
-    }
-  }
-  return myvector;
-}
+//   for (int i = 0; i < each.size(); ++i)
+//   {
+//     int ind = 0;
+//     for (int j = 0; j < each[i]; ++j)
+//     {
+//       myvector[ind++] = x[i];
+//     }
+//   }
+//   return myvector;
+// }
 
 // TRANSLATING PACKAGE FUNCTIONS TO CPP FOR SPEED BOOST
 
@@ -241,7 +238,7 @@ arma::vec pYstarCalc(
   pYstar = 1 / (1 + exp(mu_gamma * -1));
 
   arma::vec checkVector = comp_dat_all.col(Y_unval_index).rows(n, comp_dat_all.n_rows-1);
-  for (int i = 0; i < pYstar.size(); ++i)
+  for (unsigned int i = 0; i < pYstar.size(); ++i)
   {
     if (checkVector(i) == 0)
     {
@@ -285,163 +282,163 @@ arma::mat pXCalc(
   return pX;
 }
 
-// [[Rcpp::export]]
-List conditionalExpectations(const bool& errorsX,
-  const bool& errorsY,
-  const arma::mat& pX,
-  const arma::vec& pY_X,
-  const arma::vec& pYstar,
-  const int& nDiff,
-  const int& m,
-  arma::vec& w_t,
-  arma::mat& u_t,
-  arma::mat& psi_num,
-  arma::mat& psi_t)
-{
-  // arma::vec w_t(1); // psi_t.nrow
-  // arma::mat u_t(1,1); // [m * nDiff, psi_t.ncol] (half of psi_t)
-  // arma::mat psi_num;  // size(pX)
-  // arma::mat psi_t; // size(psi_num)
-  if (errorsY and errorsX)
-  {
+// UNUSED
+// List conditionalExpectations(const bool& errorsX,
+//   const bool& errorsY,
+//   const arma::mat& pX,
+//   const arma::vec& pY_X,
+//   const arma::vec& pYstar,
+//   const int& nDiff,
+//   const int& m,
+//   arma::vec& w_t,
+//   arma::mat& u_t,
+//   arma::mat& psi_num,
+//   arma::mat& psi_t)
+// {
+//   // arma::vec w_t(1); // psi_t.nrow
+//   // arma::mat u_t(1,1); // [m * nDiff, psi_t.ncol] (half of psi_t)
+//   // arma::mat psi_num;  // size(pX)
+//   // arma::mat psi_t; // size(psi_num)
+//   if (errorsY and errorsX)
+//   {
 
-    // P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*)
-    arma::mat firstPart = matTimesVec(pX, pY_X);
-    psi_num = matTimesVec(firstPart, pYstar);
+//     // P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*)
+//     arma::mat firstPart = matTimesVec(pX, pY_X);
+//     psi_num = matTimesVec(firstPart, pYstar);
 
-    // Update denominator
-    // Sum up all rows per id (e.g. sum over xk/y)
-    /*
-    psi_denom looks like: (for N-n = 750)
-    psi_num[0,] + psi_num[750,] + psi_num[1500,] + ...
-    psi_num[1,] + psi_num[751,] + ...
-    ...
-    psi_num[749,] + psi_num[1499,] + ...
-    */
-    // arma::mat combined = join_vert(psi_num.rows(psiDenomIndex), psi_num.rows(psiDenomIndex)) ;
-    arma::mat psi_denom(nDiff, psi_num.n_cols);
+//     // Update denominator
+//     // Sum up all rows per id (e.g. sum over xk/y)
+//     /*
+//     psi_denom looks like: (for N-n = 750)
+//     psi_num[0,] + psi_num[750,] + psi_num[1500,] + ...
+//     psi_num[1,] + psi_num[751,] + ...
+//     ...
+//     psi_num[749,] + psi_num[1499,] + ...
+//     */
+//     // arma::mat combined = join_vert(psi_num.rows(psiDenomIndex), psi_num.rows(psiDenomIndex)) ;
+//     arma::mat psi_denom(nDiff, psi_num.n_cols);
 
-    for (int i = 0; i < psi_num.n_rows; ++i)
-    {
-      // This % is modulo division, not element-wise multiplication
-      psi_denom.row(i % nDiff) += psi_num.row(i);
-    }
+//     for (unsigned int i = 0; i < psi_num.n_rows; ++i)
+//     {
+//       // This % is modulo division, not element-wise multiplication
+//       psi_denom.row(i % nDiff) += psi_num.row(i);
+//     }
 
-    // psi_denom is correct here July 8
+//     // psi_denom is correct here July 8
 
-    // Then sum over the sn splines
-    psi_denom = sum(psi_denom, 1);
+//     // Then sum over the sn splines
+//     psi_denom = sum(psi_denom, 1);
 
-    // Avoid NaN resulting from dividing by 0
-    for (int i = 0; i < psi_denom.n_rows; ++i)
-    {
-      if (psi_denom[i] == 0)
-      {
-        psi_denom[i] = 1;
-      }
-    }
-
-
-
-    // And divide them!
-    psi_t = matDivideVec(psi_num, psi_denom);
-
-    // Update the w_kyi for unvalidated subjects
-    // by summing across the splines/ columns of psi_t
-    // Equivalent to rowSums()
-    w_t = sum(psi_t, 1);
-
-    // Update the u_kji for unvalidated subjects
-    // by summing over Y = 0/1 w/i each i, k
-    // add top half of psi_t (y = 0) to bottom half (y = 1)
-
-    u_t.reshape(size(psi_t));
-
-    try
-    {
-      u_t = psi_t.head_rows(m * nDiff) + psi_t.tail_rows(m * nDiff);
-    }
-    catch(std::exception e)
-    {
-      // Rcpp requires this exception handling, never encountered it
-      Rcout << "Something has gone wrong while calculating u_t!" << endl;
-      return List::create(Named("u_t") = u_t, Named("w_t") = w_t, Named("psi_t")=psi_t);
-    }
-
-  }
-  else if (errorsX)
-  {
-
-
-    // THIS BRANCH IS UNTESTED
+//     // Avoid NaN resulting from dividing by 0
+//     for (unsigned int i = 0; i < psi_denom.n_rows; ++i)
+//     {
+//       if (psi_denom[i] == 0)
+//       {
+//         psi_denom[i] = 1;
+//       }
+//     }
 
 
 
-    Rcout << "JUST ERRORS X!";
-    // P(Y|X,C)p_kjB(X*)
-    psi_num = matTimesVec(pX, pY_X);
+//     // And divide them!
+//     psi_t = matDivideVec(psi_num, psi_denom);
 
-    // Update denominator
-    // Sum up all rows per id (e.g. sum over xk)
-    arma::mat psi_denom(nDiff, psi_num.n_cols, arma::fill::zeros);
-    for (int i = 0; i < psi_num.n_rows; ++i)
-    {
-      psi_denom.row(i % nDiff) += psi_num.row(i);
-    }
+//     // Update the w_kyi for unvalidated subjects
+//     // by summing across the splines/ columns of psi_t
+//     // Equivalent to rowSums()
+//     w_t = sum(psi_t, 1);
 
-    // Then sum over the sn splines
-    psi_denom = sum(psi_denom, 1);
+//     // Update the u_kji for unvalidated subjects
+//     // by summing over Y = 0/1 w/i each i, k
+//     // add top half of psi_t (y = 0) to bottom half (y = 1)
 
-    // Avoid NaN resulting from dividing by 0
-    for (int i = 0; i < psi_denom.n_rows; ++i)
-    {
-      if (psi_denom[i] == 0)
-        psi_denom[i] = 1;
-    }
+//     u_t.reshape(size(psi_t));
 
-    // And divide them!
-    psi_t = matDivideVec(psi_num, psi_denom);
+//     try
+//     {
+//       u_t = psi_t.head_rows(m * nDiff) + psi_t.tail_rows(m * nDiff);
+//     }
+//     catch(std::exception e)
+//     {
+//       // Rcpp requires this exception handling, never encountered it
+//       Rcout << "Something has gone wrong while calculating u_t!" << endl;
+//       return List::create(Named("u_t") = u_t, Named("w_t") = w_t, Named("psi_t")=psi_t);
+//     }
 
-    // Update the w_kyi for unvalidated subjects
-    // by summing across the splines/ columns of psi_t
-    w_t = sum(psi_t, 1);
-  }
-  else if (errorsY)
-  {
+//   }
+//   else if (errorsX)
+//   {
 
 
-    // THIS BRANCH IS UNTESTED
+//     // THIS BRANCH IS UNTESTED
 
 
 
-    Rcout << "JUST ERRORS Y!";
-    // P(Y|X,C)P(Y*|Y,X,C)
-    arma::colvec psi_num = pY_X * pYstar;
+//     Rcout << "JUST ERRORS X!";
+//     // P(Y|X,C)p_kjB(X*)
+//     psi_num = matTimesVec(pX, pY_X);
 
-    // Sum up all rows per id (e.g. sum over y)
-    arma::mat psi_denom(size(psi_num), arma::fill::zeros);
+//     // Update denominator
+//     // Sum up all rows per id (e.g. sum over xk)
+//     arma::mat psi_denom(nDiff, psi_num.n_cols, arma::fill::zeros);
+//     for (unsigned int i = 0; i < psi_num.n_rows; ++i)
+//     {
+//       psi_denom.row(i % nDiff) += psi_num.row(i);
+//     }
 
-    for (int i = 0; i < psi_num.n_rows; ++i)
-    {
-      psi_denom.row(i % nDiff) += psi_num.row(i);
-    }
+//     // Then sum over the sn splines
+//     psi_denom = sum(psi_denom, 1);
 
-    // Avoid NaN resulting from dividing by 0
-    for (int i = 0; i < psi_denom.n_rows; ++i)
-    {
-      if (psi_denom[i] == 0)
-        psi_denom[i] = 1;
-    }
+//     // Avoid NaN resulting from dividing by 0
+//     for (unsigned int i = 0; i < psi_denom.n_rows; ++i)
+//     {
+//       if (psi_denom[i] == 0)
+//         psi_denom[i] = 1;
+//     }
 
-    // And divide them!
-    psi_t = matDivideVec(psi_num, psi_denom);
+//     // And divide them!
+//     psi_t = matDivideVec(psi_num, psi_denom);
 
-    // Update the w_kyi for unvalidated subjects
-    w_t = psi_t;
-  }
+//     // Update the w_kyi for unvalidated subjects
+//     // by summing across the splines/ columns of psi_t
+//     w_t = sum(psi_t, 1);
+//   }
+//   else if (errorsY)
+//   {
 
-  return List::create(Named("w_t")=w_t, Named("u_t")=u_t, Named("psi_t")=psi_t);
-}
+
+//     // THIS BRANCH IS UNTESTED
+
+
+
+//     Rcout << "JUST ERRORS Y!";
+//     // P(Y|X,C)P(Y*|Y,X,C)
+//     arma::colvec psi_num = pY_X * pYstar;
+
+//     // Sum up all rows per id (e.g. sum over y)
+//     arma::mat psi_denom(size(psi_num), arma::fill::zeros);
+
+//     for (unsigned int i = 0; i < psi_num.n_rows; ++i)
+//     {
+//       psi_denom.row(i % nDiff) += psi_num.row(i);
+//     }
+
+//     // Avoid NaN resulting from dividing by 0
+//     for (unsigned int i = 0; i < psi_denom.n_rows; ++i)
+//     {
+//       if (psi_denom[i] == 0)
+//         psi_denom[i] = 1;
+//     }
+
+//     // And divide them!
+//     psi_t = matDivideVec(psi_num, psi_denom);
+
+//     // Update the w_kyi for unvalidated subjects
+//     w_t = psi_t;
+//   }
+
+//   return List::create(Named("w_t")=w_t, Named("u_t")=u_t, Named("psi_t")=psi_t);
+// }
 
 // // UNUSED
 // List profileOutLoop(
