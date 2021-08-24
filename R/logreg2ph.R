@@ -675,7 +675,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
 
     return(list(Coefficients = data.frame(Coefficient = new_theta,
       SE = se_theta),
-    v_cov = cov_theta,
+    vcov = cov_theta,
     converged = CONVERGED,
     se_converged = SE_CONVERGED,
     converged_msg = CONVERGED_MSG,
