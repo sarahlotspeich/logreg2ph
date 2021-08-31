@@ -16,7 +16,6 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 LinkingTo:
     Rcpp,
-    RcppEigen,
     RcppArmadillo
 Suggests: 
     knitr,
