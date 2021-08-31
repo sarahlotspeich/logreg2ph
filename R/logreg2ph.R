@@ -680,7 +680,8 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     se_converged = SE_CONVERGED,
     converged_msg = CONVERGED_MSG,
     iterations = it,
-    od_loglik_at_conv = od_loglik_theta))
+    od_loglik_at_conv = od_loglik_theta,
+    bspline_coef = new_p))
   }
 }
 
