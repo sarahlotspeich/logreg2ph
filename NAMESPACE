@@ -1,3 +1,4 @@
+useDynLib("logreg2ph", .registration=TRUE)
 
 export(logreg2ph)
 
