@@ -9,6 +9,12 @@ To install the package, run the following in your `R` console:
 devtools::install_github("sarahlotspeich/logreg2ph")
 ```
 
+Development build (likely unstable):
+
+```{r}
+devtools::install_github("Epic-Doughnut/logreg2ph")
+```
+
 ### Simulation settings 
 Inside the `simulations` subdirectory, you will find the following: 
 
