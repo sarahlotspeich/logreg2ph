@@ -10,5 +10,12 @@
 ## support within Armadillo prefers / requires it
 CXX_STD = CXX11
 
+## Setting the correct compiler for Macs
+CC = clang
+CXX = clang++
+
+## Allowing larger memory allocations to arrays in Rcpp Armadillo
 PKG_CXXFLAGS = -DARMA_64BIT_WORD=1
+
+## Compilation
 PKG_LIBS =  $(shell $(R_HOME)/bin/Rscript -e "Rcpp:::LdFlags()" ) $(LAPACK_LIBS) $(BLAS_LIBS) $(FLIBS) 
