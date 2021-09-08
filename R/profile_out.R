@@ -8,15 +8,16 @@
 #' @param theta Parameters for the analysis model (a column vector)
 #' @param N Phase I sample size
 #' @param n Phase II sample size
-#' @param Y_unval Column with the unvalidated outcome (can be name or numeric index)
-#' @param Y_val Column with the validated outcome (can be name or numeric index)
-#' @param X_unval Column(s) with the unvalidated predictors (can be name or numeric index)
-#' @param X_val Column(s) with the validated predictors (can be name or numeric index)
-#' @param C (Optional) Column(s) with additional error-free covariates (can be name or numeric index)
-#' @param Bspline Vector of columns containing the B-spline basis functions (can be name or numeric index)
+#' @param Y_unval Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.
+#' @param Y_val Column names with the validated outcome.
+#' @param X_unval Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param X_val Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param C (Optional) Column name(s) with additional error-free covariates.
+#' @param Validated Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.
+#' @param Bspline Vector of column names containing the B-spline basis functions.
 #' @param comp_dat_all Augmented dataset containing rows for each combination of unvalidated subjects' data with values from Phase II (a matrix)
-#' @param theta_pred Vector of columns in \code{data} that pertain to the predictors in the analysis model.
-#' @param gamma_pred Vector of columns in \code{data} that pertain to the predictors in the outcome error model.
+#' @param theta_pred Vector of columns in \code{comp_dat_all} that pertain to the predictors in the analysis model.
+#' @param gamma_pred Vector of columns in \code{comp_dat_all} that pertain to the predictors in the outcome error model.
 #' @param gamma0 Starting values for `gamma`, the parameters for the outcome error model (a column vector)
 #' @param p0 Starting values for `p`, the B-spline coefficients for the approximated covariate error model (a matrix)
 #' @param p_val_num Contributions of validated subjects to the numerator for `p`, which are fixed (a matrix)
@@ -42,11 +43,14 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
 
   theta_design_mat <- cbind(int = 1, comp_dat_all[-c(1:n), theta_pred])
 
-
   # For the E-step, save static P(Y|X) for unvalidated --------------
-  pY_X <- pYstarCalc(theta_design_mat, n, 0, theta, comp_dat_all, match(Y_val, colnames(comp_dat_all))-1, vector("numeric",nrow(theta_design_mat)), vector("numeric",nrow(theta_design_mat)))
-  if (errorsY)
-  {
+  mu_theta <- as.numeric(theta_design_mat %*% theta)
+  pY_X <- 1 / (1 + exp(- mu_theta))
+  I_y0 <-  comp_dat_all[-c(1:n), Y_val] == 0
+  pY_X[I_y0] <- 1 - pY_X[I_y0]
+  # -------------- For the E-step, save static P(Y|X) for unvalidated
+
+  if (errorsY) {
     gamma_formula <- as.formula(paste0(Y_unval, "~", paste(gamma_pred, collapse = "+")))
     gamma_design_mat <- cbind(int = 1, comp_dat_all[, gamma_pred])
   }
@@ -55,37 +59,19 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
   CONVERGED_MSG <- "Unknown"
   it <- 1
 
-  # pre-allocate memory for our loop variables
-  # improves performance
-  if (errorsY)
-  {
-    pYstar <- vector(mode="numeric", length = nrow(gamma_design_mat) - n)
-    mu_gamma <- vector(mode="numeric", length = length(pYstar))
-    mus_gamma <- vector("numeric", nrow(gamma_design_mat) * ncol(prev_gamma))
-  }
-  psi_num <- matrix(,nrow = nrow(comp_dat_all)-n, ncol=length(Bspline))
-  psi_t <- matrix(,nrow = nrow(psi_num), ncol = ncol(psi_num))
-  w_t <- vector("numeric", length = nrow(psi_t))
-  u_t <- matrix(,nrow = m * (N-n), ncol = ncol(psi_t))
-  pX <- matrix(,nrow = m * (N-n) * ifelse(errorsY, 2, 1), ncol = length(Bspline))
-
   # Estimate gamma/p using EM -----------------------------------------
-  while(it <= MAX_ITER & !CONVERGED)
-  {
-
+  while(it <= MAX_ITER & !CONVERGED) {
     # E Step ----------------------------------------------------------
-    # P(Y*|X*,Y,X) ---------------------------------------------------
-    if (errorsY)
-    {
-      pYstar <- pYstarCalc(gamma_design_mat, n, n, prev_gamma, comp_dat_all, match(Y_unval, colnames(comp_dat_all))-1, pYstar, mu_gamma)
+    ## P(Y*|X*,Y,X) ---------------------------------------------------
+    if (errorsY) {
+      mu_gamma <- as.numeric(gamma_design_mat[-c(1:n), ] %*% prev_gamma)
+      pYstar <- 1 / (1 + exp(- mu_gamma))
+      I_ystar0 <- comp_dat_all[-c(1:n), Y_unval] == 0
+      pYstar[I_ystar0] <- 1 - pYstar[I_ystar0]
     }
-
     ### -------------------------------------------------- P(Y*|X*,Y,X)
     ###################################################################
     ### P(X|X*) -------------------------------------------------------
-
-    # these are the slowest lines in this function (13280 ms), but I can't seem to get any faster with C++
-    # pX <- pXCalc(n, comp_dat_all[-c(1:n), Bspline], errorsX, errorsY, pX, prev_p[rep(seq(1, m), each = (N - n)), ])
     if (errorsX & errorsY) {
       ### p_kj ------------------------------------------------------
       ### need to reorder pX so that it's x1, ..., x1, ...., xm, ..., xm-
@@ -102,17 +88,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
     ### ------------------------------------------------------- P(X|X*)
     ###################################################################
     ### Estimate conditional expectations -----------------------------
-
-
-    # this function modifies w_t, u_t, psi_num, and psi_t internally
-    # condExp <- conditionalExpectations(errorsX, errorsY, pX, pY_X, pYstar, N - n, m, w_t, u_t, psi_num, psi_t)
-    # w_t <- condExp[["w_t"]]
-    # u_t <- condExp[["u_t"]]
-    # psi_t <- condExp[["psi_t"]]
-
-
     if (errorsY & errorsX) {
-
       ### P(Y|X,C)P(Y*|X*,Y,X,C)p_kjB(X*) -----------------------------
       psi_num <- c(pY_X * pYstar) * pX
       ### Update denominator ------------------------------------------
@@ -131,9 +107,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
       ### by summing over Y = 0/1 w/i each i, k ----------------------
       ### add top half of psi_t (y = 0) to bottom half (y = 1) -------
       u_t <- psi_t[c(1:(m * (N - n))), ] + psi_t[- c(1:(m * (N - n))), ]
-
-    } else if (!errorsY && errorsX) {
-
+    } else if (errorsX) {
       ### P(Y|X,C)p_kjB(X*) -------------------------------------------
       psi_num <- c(pY_X) * pX
       ### Update denominator ------------------------------------------
@@ -148,9 +122,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
       ### Update the w_kyi for unvalidated subjects -------------------
       ### by summing across the splines/ columns of psi_t -------------
       w_t <- rowSums(psi_t)
-
-    } else if (!errorsX && errorsY) {
-
+    } else if (errorsY) {
       ### P(Y|X,C)P(Y*|Y,X,C) -----------------------------------------
       psi_num <- matrix(c(pY_X * pYstar), ncol = 1)
       #### Sum up all rows per id (e.g. sum over y) -------------------
@@ -161,9 +133,7 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
       psi_t <- psi_num / psi_denom
       ### Update the w_kyi for unvalidated subjects -------------------
       w_t <- psi_t
-
     }
-
     ### ----------------------------- Estimate conditional expectations
     # ---------------------------------------------------------- E Step
     ###################################################################
@@ -171,55 +141,45 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
     ###################################################################
     # M Step ----------------------------------------------------------
     ###################################################################
-    if (errorsY)
-    {
+    if (errorsY) {
+      w_t <- c(rep(1, n), w_t)
 
       ## Update gamma using weighted logistic regression ----------------
-      w_t <- lengthenWT(w_t, n)
-      muVector <- calculateMu(gamma_design_mat, prev_gamma)
-      gradient_gamma <- calculateGradient(w_t, n, gamma_design_mat, comp_dat_all[,c(Y_unval)], muVector)
-      hessian_gamma <- calculateHessian(gamma_design_mat, w_t, muVector, n, mus_gamma)
-
-      new_gamma <- tryCatch(expr = prev_gamma - (solve(hessian_gamma) %*% gradient_gamma),
+      mu <- gamma_design_mat %*% prev_gamma
+      gradient_gamma <- matrix(data = c(colSums(w_t * c((comp_dat_all[, c(Y_unval)] - 1 + exp(- mu) / (1 + exp(- mu)))) * gamma_design_mat)), ncol = 1)
+      ### ------------------------------------------------------ Gradient
+      ### Hessian -------------------------------------------------------
+      post_multiply <- c(w_t * (exp(- mu) / (1 + exp(- mu))) * (exp(- mu) / (1 + exp(- mu)) - 1)) * gamma_design_mat
+      hessian_gamma <- apply(gamma_design_mat, MARGIN = 2, FUN = hessian_row, pm = post_multiply)
+      new_gamma <- tryCatch(expr = prev_gamma - solve(hessian_gamma) %*% gradient_gamma,
                             error = function(err) {
                               matrix(NA, nrow = nrow(prev_gamma))
                             })
-      if (any(is.na(new_gamma)))
-      {
+      if (any(is.na(new_gamma))) {
         suppressWarnings(new_gamma <- matrix(glm(formula = gamma_formula, family = "binomial", data = data.frame(comp_dat_all), weights = w_t)$coefficients, ncol = 1))
-        # browser()
       }
-
       # Check for convergence -----------------------------------------
       gamma_conv <- abs(new_gamma - prev_gamma) < TOL
       ## ---------------- Update gamma using weighted logistic regression
     } else { gamma_conv <- TRUE }
     ###################################################################
     ## Update {p_kj} --------------------------------------------------
-    if (errorsX & errorsY)
-    {
-
+    if (errorsX & errorsY) {
       ### Update numerators by summing u_t over i = 1, ..., N ---------
       new_p_num <- p_val_num +
         rowsum(u_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
       new_p <- t(t(new_p_num) / colSums(new_p_num))
       ### Check for convergence ---------------------------------------
       p_conv <- abs(new_p - prev_p) < TOL
-
-    }
-    else if (errorsX)
-    {
-
+    } else if (errorsX) {
       ### Update numerators by summing u_t over i = 1, ..., N ---------
       new_p_num <- p_val_num +
         rowsum(psi_t, group = rep(seq(1, m), each = (N - n)), reorder = TRUE)
       new_p <- t(t(new_p_num) / colSums(new_p_num))
       ### Check for convergence ---------------------------------------
       p_conv <- abs(new_p - prev_p) < TOL
-
     }
-    else
-    { p_conv <- TRUE }
+    else { p_conv <- TRUE }
     ## -------------------------------------------------- Update {p_kj}
     ###################################################################
     # M Step ----------------------------------------------------------
@@ -233,7 +193,6 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
     if (errorsY) { prev_gamma <- new_gamma }
     if (errorsX) { prev_p <- new_p }
     #  ------------------------------- Update values for next iteration
-
   }
 
   if(it == MAX_ITER & !CONVERGED) {
@@ -245,8 +204,6 @@ profile_out <- function(theta, n, N, Y_unval = NULL, Y_val = NULL, X_unval = NUL
   if (!errorsY) { new_gamma <- NA }
   if (!errorsX) { new_p <- NA }
   # ---------------------------------------------- Estimate theta using EM
-
-
   return(list("psi_at_conv" = psi_t,
               "gamma_at_conv" = new_gamma,
               "p_at_conv" = new_p,
