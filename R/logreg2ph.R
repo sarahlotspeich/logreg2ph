@@ -398,7 +398,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
 
     return(list(coeff = data.frame(coeff = new_theta, se = NA),
                 Bspline_coeff = new_p,
-                vcov = cov_theta,
+                vcov = NA,
                 converged = CONVERGED,
                 se_converged = NA,
                 converged_msg = CONVERGED_MSG,
