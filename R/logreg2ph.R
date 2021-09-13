@@ -17,11 +17,14 @@
 #' @param TOL Tolerance between iterations in the EM algorithm used to define convergence.
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
 #' @return
-#' \item{Coefficients}{dataframe with final coefficient and standard error estimates (where applicable).}
+#' \item{coeff}{dataframe with final coefficient and standard error estimates (where applicable).}
+#' \item{Bspline_coeff}{dataframe with final B-spline coefficient estimates (where applicable).}
+#' \item{vcov}{variance-covarianced matrix for \code{coeff} (where applicable).}
 #' \item{converged}{indicator of EM algorithm convergence for parameter estimates.}
 #' \item{se_converged}{indicator of standard error estimate convergence.}
 #' \item{converged_msg}{(where applicable) description of non-convergence.}
 #' \item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
+#' \item{od_loglik_at_conv}{value of the observed-data log-likelihood at convergence.}
 #' @export
 
 logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
@@ -47,13 +50,14 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     sn <- ncol(data[, Bspline])
     if(0 %in% colSums(data[c(1:n), Bspline])) {
       warning("Empty sieve in validated data. Reconstruct B-spline basis and try again.", call. = FALSE)
-
-      return(list(Coefficients = data.frame(Coefficient = NA,
-                                            SE = NA),
-                  converged = FALSE,
+      return(list(coeff = data.frame(coeff = NA, se = NA),
+                  Bspline_coeff = NA,
+                  vcov = NA,
+                  converged = NA,
                   se_converged = NA,
                   converged_msg = "B-spline error",
-                  iterations = 0))
+                  iterations = 0,
+                  od_loglik_at_conv = NA))
     }
   }
   # ------------------------------------------ Add the B spline basis
@@ -357,14 +361,13 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
   rownames(new_theta) <- c("Intercept", theta_pred)
   if (errorsY) { rownames(new_gamma) <- c("Intercept", gamma_pred) }
 
-  if(!CONVERGED) {
-    if(it > MAX_ITER) { CONVERGED_MSG = "MAX_ITER reached" }
-
-    return(list(Coefficients = data.frame(Coefficient = matrix(NA, nrow = nrow(prev_theta)),
-                                          SE = NA),
-                converged = CONVERGED,
+  if(!CONVERGED & it > MAX_ITER) {
+    return(list(coeff = data.frame(coeff = NA, se = NA),
+                Bspline_coeff = NA,
+                vcov = NA,
+                converged = FALSE,
                 se_converged = NA,
-                converged_msg = CONVERGED_MSG,
+                converged_msg = "MAX_ITER reached",
                 iterations = it,
                 od_loglik_at_conv = NA))
   }
@@ -379,22 +382,23 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     }
     ## Calculate pl(theta) -------------------------------------------------
     od_loglik_theta <- observed_data_loglik(N = N,
-                                               n = n,
-                                               Y_unval = Y_unval,
-                                               Y_val = Y_val,
-                                               X_unval = X_unval,
-                                               X_val = X_val,
-                                               C = C,
-                                               Bspline = Bspline,
-                                               comp_dat_all = comp_dat_all,
-                                               theta_pred = theta_pred,
-                                               gamma_pred = gamma_pred,
-                                               theta = new_theta,
-                                               gamma = new_gamma,
-                                               p = new_p)
+                                            n = n,
+                                            Y_unval = Y_unval,
+                                            Y_val = Y_val,
+                                            X_unval = X_unval,
+                                            X_val = X_val,
+                                            C = C,
+                                            Bspline = Bspline,
+                                            comp_dat_all = comp_dat_all,
+                                            theta_pred = theta_pred,
+                                            gamma_pred = gamma_pred,
+                                            theta = new_theta,
+                                            gamma = new_gamma,
+                                            p = new_p)
 
-    return(list(Coefficients = data.frame(Coefficient = new_theta,
-                                          SE = NA),
+    return(list(coeff = data.frame(coeff = new_theta, se = NA),
+                Bspline_coeff = new_p,
+                vcov = cov_theta,
                 converged = CONVERGED,
                 se_converged = NA,
                 converged_msg = CONVERGED_MSG,
@@ -511,9 +515,9 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                               matrix(NA, nrow = nrow(prev_theta))
                             }
     )
-    if (any(is.na(se_theta))) { SE_CONVERGED <- FALSE} else { TRUE }
-    return(list(Coefficients = data.frame(Coefficient = new_theta,
-                                          SE = se_theta),
+    SE_CONVERGED <- !any(is.na(se_theta))
+    return(list(coeff = data.frame(coeff = new_theta, se = se_theta),
+                Bspline_coeff = new_p,
                 vcov = cov_theta,
                 converged = CONVERGED,
                 se_converged = SE_CONVERGED,

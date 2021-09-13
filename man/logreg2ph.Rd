@@ -55,11 +55,14 @@ logreg2ph(
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
 }
 \value{
-\item{Coefficients}{dataframe with final coefficient and standard error estimates (where applicable).}
+\item{coeff}{dataframe with final coefficient and standard error estimates (where applicable).}
+\item{Bspline_coeff}{dataframe with final B-spline coefficient estimates (where applicable).}
+\item{vcov}{variance-covarianced matrix for \code{coeff} (where applicable).}
 \item{converged}{indicator of EM algorithm convergence for parameter estimates.}
 \item{se_converged}{indicator of standard error estimate convergence.}
 \item{converged_msg}{(where applicable) description of non-convergence.}
 \item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
+\item{od_loglik_at_conv}{value of the observed-data log-likelihood at convergence.}
 }
 \description{
 Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
