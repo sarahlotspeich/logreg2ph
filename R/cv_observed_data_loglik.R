@@ -21,7 +21,7 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
                         Validated = NULL, Bspline = NULL, data, theta_pred = NULL, gamma_pred = NULL,
                         TOL = 1E-4, MAX_ITER = 1000) {
   if (is.null(theta_pred)) { theta_pred <- c(X_val, C) }
-  if (is.null(gamma_pred) & errorsY) { gamma_pred <- c(X_unval, Y_val, X_val, C) }
+  if (is.null(gamma_pred) & !is.null(Y_unval)) { gamma_pred <- c(X_unval, Y_val, X_val, C) }
 
   fold_ll <- re_fold_ll <- vector()
   for (f in 1:max(data[, fold])) {
