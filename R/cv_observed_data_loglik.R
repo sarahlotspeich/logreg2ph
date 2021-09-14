@@ -101,7 +101,7 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
   } else {
     return(list(loglik = -Inf,
                 status = success,
-                msg = train_fit$conv_msg))
+                msg = train_fit$converged_msg))
   }
 }
 
