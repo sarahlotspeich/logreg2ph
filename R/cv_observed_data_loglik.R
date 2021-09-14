@@ -95,9 +95,13 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
     re_fold_ll <- append(re_fold_ll, ll)
   }
   if (success) {
-    return(mean(re_fold_ll))
+    return(list(loglik = mean(re_fold_ll),
+                status = success,
+                msg = ""))
   } else {
-    return(-Inf)
+    return(list(loglik = -Inf,
+                status = success,
+                msg = train_fit$conv_msg))
   }
 }
 
