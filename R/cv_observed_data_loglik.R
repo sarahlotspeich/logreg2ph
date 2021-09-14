@@ -14,10 +14,10 @@
 #' @param gamma_pred Vector of columns in \code{data} that pertain to the predictors in the outcome error model.
 #' @param TOL Tolerance between iterations in the EM algorithm used to define convergence.
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
-#' @return scalar
+#' @return scalar value of the function
 #' @export
 
-cv_Bspline <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
+cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
                         Validated = NULL, Bspline = NULL, data, theta_pred = NULL, gamma_pred = NULL,
                         TOL = 1E-4, MAX_ITER = 1000) {
   fold_ll <- re_fold_ll <- vector()
