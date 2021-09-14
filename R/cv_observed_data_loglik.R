@@ -94,14 +94,8 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
                                theta = train_theta, gamma = train_gamma, p = re_test_p)
     re_fold_ll <- append(re_fold_ll, ll)
   }
-  if (success) {
-    return(list(loglik = mean(re_fold_ll),
-                status = success,
-                msg = ""))
-  } else {
-    return(list(loglik = -Inf,
-                status = success,
-                msg = train_fit$converged_msg))
-  }
+  return(list(loglik = ifelse(success, mean(re_fold_ll), -Inf),
+              status = success,
+              msg = train_fit$converged_msg))
 }
 
