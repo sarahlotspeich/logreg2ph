@@ -401,7 +401,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     colnames(new_p) <- paste0("p_", Bspline)
     return(list(coeff = data.frame(coeff = new_theta, se = NA),
                 outcome_err_coeff = data.frame(coeff = new_gamma, se = NA),
-                Bspline_coeff = cbind(comp_dat_val[, Y_val], new_p),
+                Bspline_coeff = cbind(comp_dat_val[, "k"], new_p),
                 vcov = NA,
                 converged = CONVERGED,
                 se_converged = NA,
@@ -523,7 +523,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     colnames(new_p) <- paste0("p_", Bspline)
     return(list(coeff = data.frame(coeff = new_theta, se = se_theta),
                 outcome_err_coeff = data.frame(coeff = new_gamma, se = NA),
-                Bspline_coeff = cbind(comp_dat_val[, X_val], new_p),
+                Bspline_coeff = cbind(comp_dat_val[, "k"], new_p),
                 vcov = cov_theta,
                 converged = CONVERGED,
                 se_converged = SE_CONVERGED,
