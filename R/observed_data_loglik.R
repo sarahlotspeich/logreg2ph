@@ -39,14 +39,14 @@ observed_data_loglik <- function(N, n, Y_unval = NULL, Y_val = NULL, X_unval = N
   # For validated subjects --------------------------------------------------------
   #################################################################################
   ## Sum over log[P_theta(Yi|Xi)] -------------------------------------------------
-  pY_X <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[c(1:n), theta_pred]) %*% theta)))
+  pY_X <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[c(1:n), theta_pred]) %*% matrix(theta, ncol = 1))))
   pY_X <- ifelse(as.vector(comp_dat_all[c(1:n), c(Y_val)]) == 0, 1 - pY_X, pY_X)
   return_loglik <- sum(log(pY_X))
   ## ------------------------------------------------- Sum over log[P_theta(Yi|Xi)]
   #################################################################################
   if (errorsY) {
     ## Sum over log[P(Yi*|Xi*,Yi,Xi)] -----------------------------------------------
-    pYstar <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[c(1:n), gamma_pred]) %*% gamma)))
+    pYstar <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[c(1:n), gamma_pred]) %*% matrix(gamma, ncol = 1))))
     pYstar <- ifelse(as.vector(comp_dat_all[c(1:n), Y_unval]) == 0, 1 - pYstar, pYstar)
     return_loglik <- return_loglik + sum(log(pYstar))
     ## ----------------------------------------------- Sum over log[P(Yi*|Xi*,Yi,Xi)]
@@ -65,13 +65,13 @@ observed_data_loglik <- function(N, n, Y_unval = NULL, Y_val = NULL, X_unval = N
 
   # For unvalidated subjects ------------------------------------------------------
   ## Calculate P_theta(y|x) for all (y,xk) ----------------------------------------
-  pY_X <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[-c(1:n), theta_pred]) %*% theta)))
+  pY_X <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[-c(1:n), theta_pred]) %*% matrix(theta, ncol = 1))))
   pY_X[which(comp_dat_all[-c(1:n), Y_val] == 0)] <- 1 - pY_X[which(comp_dat_all[-c(1:n), Y_val] == 0)]
   ## ---------------------------------------- Calculate P_theta(y|x) for all (y,xk)
   ################################################################################
   if (errorsY) {
     ## Calculate P(Yi*|Xi*,y,xk) for all (y,xk) ------------------------------------
-    pYstar <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[-c(1:n), gamma_pred]) %*% gamma)))
+    pYstar <- 1 / (1 + exp(-as.numeric(cbind(int = 1, comp_dat_all[-c(1:n), gamma_pred]) %*% matrix(gamma, ncol = 1))))
     pYstar[which(comp_dat_all[-c(1:n), Y_unval] == 0)] <- 1 - pYstar[which(comp_dat_all[-c(1:n), Y_unval] == 0)]
     ## ------------------------------------ Calculate P(Yi*|Xi*,y,xk) for all (y,xk)
   } else {
