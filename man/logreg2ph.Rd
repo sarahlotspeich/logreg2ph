@@ -24,9 +24,9 @@ logreg2ph(
 )
 }
 \arguments{
-\item{Y_unval}{Column names with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.}
+\item{Y_unval}{Column name with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.}
 
-\item{Y_val}{Column names with the validated outcome.}
+\item{Y_val}{Column name with the validated outcome.}
 
 \item{X_unval}{Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
 
