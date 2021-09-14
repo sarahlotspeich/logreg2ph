@@ -17,7 +17,8 @@
 #' @param TOL Tolerance between iterations in the EM algorithm used to define convergence.
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
 #' @return
-#' \item{coeff}{dataframe with final coefficient and standard error estimates (where applicable).}
+#' \item{coeff}{dataframe with final coefficient and standard error estimates (where applicable) for the analysis model.}
+#' \item{outcome_err_coeff}{dataframe with final coefficient estimates for the outcome error model.}
 #' \item{Bspline_coeff}{dataframe with final B-spline coefficient estimates (where applicable).}
 #' \item{vcov}{variance-covarianced matrix for \code{coeff} (where applicable).}
 #' \item{converged}{indicator of EM algorithm convergence for parameter estimates.}
@@ -51,6 +52,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     if(0 %in% colSums(data[c(1:n), Bspline])) {
       warning("Empty sieve in validated data. Reconstruct B-spline basis and try again.", call. = FALSE)
       return(list(coeff = data.frame(coeff = NA, se = NA),
+                  outcome_err_coeff = data.frame(coeff = NA, se = NA),
                   Bspline_coeff = NA,
                   vcov = NA,
                   converged = NA,
@@ -363,6 +365,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
 
   if(!CONVERGED & it > MAX_ITER) {
     return(list(coeff = data.frame(coeff = NA, se = NA),
+                outcome_err_coeff = data.frame(coeff = NA, se = NA),
                 Bspline_coeff = NA,
                 vcov = NA,
                 converged = FALSE,
@@ -397,6 +400,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
                                             p = new_p)
     colnames(new_p) <- paste0("p_", Bspline)
     return(list(coeff = data.frame(coeff = new_theta, se = NA),
+                outcome_err_coeff = data.frame(coeff = new_gamma, se = NA),
                 Bspline_coeff = cbind(comp_dat_val[, Bspline], new_p),
                 vcov = NA,
                 converged = CONVERGED,
@@ -518,6 +522,7 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     SE_CONVERGED <- !any(is.na(se_theta))
     colnames(new_p) <- paste0("p_", Bspline)
     return(list(coeff = data.frame(coeff = new_theta, se = se_theta),
+                outcome_err_coeff = data.frame(coeff = new_gamma, se = NA),
                 Bspline_coeff = cbind(comp_dat_val[, Bspline], new_p),
                 vcov = cov_theta,
                 converged = CONVERGED,
