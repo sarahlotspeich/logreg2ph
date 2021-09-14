@@ -23,6 +23,7 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
   if (is.null(theta_pred)) { theta_pred <- c(X_val, C) }
   if (is.null(gamma_pred) & !is.null(Y_unval)) { gamma_pred <- c(X_unval, Y_val, X_val, C) }
 
+  success <- TRUE
   fold_ll <- re_fold_ll <- vector()
   for (f in 1:max(data[, fold])) {
     train <- data[which(data[, fold] == f), ]
@@ -32,6 +33,10 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
                                         theta_pred = theta_pred, gamma_pred = gamma_pred,
                                         noSE = TRUE, TOL = TOL, MAX_ITER = MAX_ITER)
     )
+    if (!train_fit$converged | is.na(train_fit$converged)) {
+      success <- FALSE
+      break
+    }
     train_theta <- train_fit$coeff$coeff
     train_gamma <- train_fit$outcome_err_coeff$coeff
     train_p <- train_fit$Bspline_coeff
@@ -89,6 +94,10 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
                                theta = train_theta, gamma = train_gamma, p = re_test_p)
     re_fold_ll <- append(re_fold_ll, ll)
   }
-  return(mean(re_fold_ll))
+  if (success) {
+    return(mean(re_fold_ll))
+  } else {
+    return(-Inf)
+  }
 }
 
