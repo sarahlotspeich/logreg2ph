@@ -76,7 +76,9 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
     }
 
     # Recale columns of test_p to sum to 1
-    re_test_p <- t(t(test_p) / colSums(test_p))
+    denom <- colSums(test_p)
+    denom[denom == 0] <- 1 # Avoid NaN error due to dividing by 0
+    re_test_p <- t(t(test_p) / denom)
 
     # Construct complete dataset
     cd <- complete_data(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa",
