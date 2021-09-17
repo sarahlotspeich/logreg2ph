@@ -23,9 +23,13 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
   if (is.null(theta_pred)) { theta_pred <- c(X_val, C) }
   if (is.null(gamma_pred) & !is.null(Y_unval)) { gamma_pred <- c(X_unval, Y_val, X_val, C) }
 
-  success <- TRUE
-  fold_ll <- re_fold_ll <- vector()
-  for (f in 1:max(data[, fold])) {
+  num_folds <- length(unique(data[, fold]))
+  status <- rep(TRUE, num_folds)
+  msg <- rep("", num_folds)
+  ll <- rep(NA, num_folds)
+  #fold_ll <- re_fold_ll <- vector()
+  for (i in 1:num_folds) {
+    f <- unique(data[, fold])[i]
     train <- data[which(data[, fold] == f), ]
     suppressMessages(
       train_fit <- logreg2ph::logreg2ph(Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
@@ -33,71 +37,72 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
                                         theta_pred = theta_pred, gamma_pred = gamma_pred,
                                         noSE = TRUE, TOL = TOL, MAX_ITER = MAX_ITER)
     )
-    if (!train_fit$converged | is.na(train_fit$converged)) {
-      success <- FALSE
-      break
-    }
-    train_theta <- train_fit$coeff$coeff
-    train_gamma <- train_fit$outcome_err_coeff$coeff
-    train_p <- train_fit$Bspline_coeff
-    train_x <- data.frame(train[train[, Validated] == 1, X_val])
-    train_x <- data.frame(train_x[order(train_x[, 1]), ])
-    colnames(train_x) <- X_val
-    train_x <- cbind(k = 1:nrow(train_x), train_x)
-    train_p <- merge(train_x, train_p)
+    status[i] <- train_fit$converged
+    msg[i] <- train_fit$converged_msg
 
-    test <- data[which(data[, fold] != f), ]
-    test_x <- data.frame(test[test[, Validated] == 1, X_val])
-    test_x <- data.frame(test_x[order(test_x[, 1]), ])
-    colnames(test_x) <- X_val
-    test_x <- cbind(k_ = 1:nrow(test_x), test_x)
-    test_p <- matrix(data = NA, nrow = nrow(test_x), ncol = length(Bspline))
+    if (train_fit$converged) {
+      train_theta <- train_fit$coeff$coeff
+      train_gamma <- train_fit$outcome_err_coeff$coeff
+      train_p <- train_fit$Bspline_coeff
+      train_x <- data.frame(train[train[, Validated] == 1, X_val])
+      train_x <- data.frame(train_x[order(train_x[, 1]), ])
+      colnames(train_x) <- X_val
+      train_x <- cbind(k = 1:nrow(train_x), train_x)
+      train_p <- merge(train_x, train_p)
 
-    for (i in 1:nrow(test_x)) {
-      x_ <- test_x[i, X_val]
-      bf <- suppressWarnings(expr = max(which(train_x[, X_val] <= x_)))
-      af <- suppressWarnings(expr = min(which(train_x[, X_val] >= x_)))
-      if (bf == -Inf) { bf <- af }
-      if (af == Inf) { af <- bf }
+      test <- data[which(data[, fold] != f), ]
+      test_x <- data.frame(test[test[, Validated] == 1, X_val])
+      test_x <- data.frame(test_x[order(test_x[, 1]), ])
+      colnames(test_x) <- X_val
+      test_x <- cbind(k_ = 1:nrow(test_x), test_x)
+      test_p <- matrix(data = NA, nrow = nrow(test_x), ncol = length(Bspline))
 
-      # x values immediately before/after
-      x0 <- train_p[bf, X_val]
-      x1 <- train_p[af, X_val]
+      for (i in 1:nrow(test_x)) {
+        x_ <- test_x[i, X_val]
+        bf <- suppressWarnings(expr = max(which(train_x[, X_val] <= x_)))
+        af <- suppressWarnings(expr = min(which(train_x[, X_val] >= x_)))
+        if (bf == -Inf) { bf <- af }
+        if (af == Inf) { af <- bf }
 
-      # B-spline coefficients immediately before/after
-      p0 <- train_p[bf, -c(1:(1 + length(X_val)))]
-      p1 <- train_p[af, -c(1:(1 + length(X_val)))]
+        # x values immediately before/after
+        x0 <- train_p[bf, X_val]
+        x1 <- train_p[af, X_val]
 
-      if (x1 == x0) {
-        test_p[i, ] <- unlist(p0)
-      } else {
-        test_p[i, ] <- unlist((p0 * (x1 - x_) + p1 * (x_ - x0)) / (x1 - x0))
+        # B-spline coefficients immediately before/after
+        p0 <- train_p[bf, -c(1:(1 + length(X_val)))]
+        p1 <- train_p[af, -c(1:(1 + length(X_val)))]
+
+        if (x1 == x0) {
+          test_p[i, ] <- unlist(p0)
+        } else {
+          test_p[i, ] <- unlist((p0 * (x1 - x_) + p1 * (x_ - x0)) / (x1 - x0))
+        }
       }
+
+      # Recale columns of test_p to sum to 1
+      denom <- colSums(test_p)
+      denom[denom == 0] <- 1 # Avoid NaN error due to dividing by 0
+      re_test_p <- t(t(test_p) / denom)
+
+      # Construct complete dataset
+      cd <- complete_data(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa",
+                          Validated = "V", Bspline = colnames(B), data = test)
+      # Calculate log-likelihood -------------------------------------------
+      # ll <- observed_data_loglik(N = nrow(test), n = sum(test[, Validated]),
+      #                            Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
+      #                            Bspline = Bspline, comp_dat_all = cd, theta_pred = theta_pred, gamma_pred = gamma_pred,
+      #                            theta = train_theta, gamma = train_gamma, p = test_p)
+      # fold_ll <- append(fold_ll, ll)
+
+      ll_f <- observed_data_loglik(N = nrow(test), n = sum(test[, Validated]),
+                                 Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
+                                 Bspline = Bspline, comp_dat_all = cd, theta_pred = theta_pred, gamma_pred = gamma_pred,
+                                 theta = train_theta, gamma = train_gamma, p = re_test_p)
+      ll[i] <- ll_f
+    } else {
+
     }
-
-    # Recale columns of test_p to sum to 1
-    denom <- colSums(test_p)
-    denom[denom == 0] <- 1 # Avoid NaN error due to dividing by 0
-    re_test_p <- t(t(test_p) / denom)
-
-    # Construct complete dataset
-    cd <- complete_data(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa",
-                        Validated = "V", Bspline = colnames(B), data = test)
-    # Calculate log-likelihood -------------------------------------------
-    # ll <- observed_data_loglik(N = nrow(test), n = sum(test[, Validated]),
-    #                            Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
-    #                            Bspline = Bspline, comp_dat_all = cd, theta_pred = theta_pred, gamma_pred = gamma_pred,
-    #                            theta = train_theta, gamma = train_gamma, p = test_p)
-    # fold_ll <- append(fold_ll, ll)
-
-    ll <- observed_data_loglik(N = nrow(test), n = sum(test[, Validated]),
-                               Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
-                               Bspline = Bspline, comp_dat_all = cd, theta_pred = theta_pred, gamma_pred = gamma_pred,
-                               theta = train_theta, gamma = train_gamma, p = re_test_p)
-    re_fold_ll <- append(re_fold_ll, ll)
   }
-  return(list(loglik = ifelse(success, mean(re_fold_ll), -Inf),
-              status = success,
-              msg = train_fit$converged_msg))
+  return(list(loglik = ll, status = status, msg = msg))
 }
 
