@@ -1,5 +1,6 @@
 // This definition allows us to do some big matrix multiplication (calculateHessian)
-#define ARMA_64BIT_WORD 1
+// Set in Makevars
+// #define ARMA_64BIT_WORD 1
 
 // [[Rcpp::depends(RcppArmadillo)]]
 
