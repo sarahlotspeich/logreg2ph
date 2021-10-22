@@ -2,12 +2,18 @@
 ## Lotspeich, Shepherd, Amorim, Shaw, and Tao
 The complete R package `logreg2ph` and code for the simulation settings included in the paper. 
 
+### Citation
+
+Lotspeich, SC, Shepherd, BE, Amorim, GC, Shaw, PA, Tao, R. Efficient odds ratio estimation under two-phase sampling using error-prone data from a multi-national HIV research cohort. *Biometrics*. 2021; 1– 12. https://doi.org/10.1111/biom.13512
+
 ### Install
 To install the package, run the following in your `R` console: 
 
 ```{r}
 devtools::install_github("sarahlotspeich/logreg2ph")
 ```
+
+*Note: On Mac, we noticed there were some conflicts between the C++ code that supports this package and Python/Anaconda. If you experience this, the R-only version of this package can be found at https://github.com/sarahlotspeich/logreg2ph_R_only.*
 
 ### Simulation settings 
 Inside the `simulations` subdirectory, you will find the following: 
