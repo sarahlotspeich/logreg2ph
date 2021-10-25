@@ -1,32 +1,31 @@
 #' Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-#' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
+#' This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2021)
 #'
-#' @param Y_unval Column with the unvalidated outcome (can be name or numeric index). If \code{Y_unval} is null, the outcome is assumed to be error-free.
-#' @param Y_val Column with the validated outcome (can be name or numeric index)
-#' @param X_unval Column(s) with the unvalidated predictors (can be name or numeric index).  If \code{X_unval} and \code{X_val} are \code{null}, all precictors assumed to be error-free.
-#' @param X_val Column(s) with the validated predictors (can be name or numeric index). If \code{X_unval} and \code{X_val} are \code{null}, all precictors assumed to be error-free.
-#' @param C (Optional) Column(s) with additional error-free covariates (can be name or numeric index)
-#' @param Validated Columns with the validation indicator (can be name or numeric index)
-#' @param Bspline Vector of columns containing the B-spline basis functions (can be name or numeric index)
-#' @param data A dataframe with one row per subject containing columns: Y_unval, Y_val, X_unval, X_val, C, Validated, and Bspline.
+#' @param Y_unval Column name with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.
+#' @param Y_val Column name with the validated outcome.
+#' @param X_unval Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param X_val Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.
+#' @param C (Optional) Column name(s) with additional error-free covariates.
+#' @param Validated Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.
+#' @param Bspline Vector of column names containing the B-spline basis functions.
+#' @param data A dataframe with one row per subject containing columns: \code{Y_unval}, \code{Y_val}, \code{X_unval}, \code{X_val}, \code{C}, \code{Validated}, and \code{Bspline}.
 #' @param theta_pred Vector of columns in \code{data} that pertain to the predictors in the analysis model.
 #' @param gamma_pred Vector of columns in \code{data} that pertain to the predictors in the outcome error model.
-#' @param initial_lr_params Initial values for parametric model parameters. Choices include (1) "Zero" (non-informative starting values) or (2) "Complete-data" (estimated based on validated subjects only)
+#' @param initial_lr_params Initial values for parametric model parameters. Choices include (1) \code{"Zero"} (non-informative starting values) or (2) \code{"Complete-data"} (estimated based on validated subjects only)
 #' @param h_N_scale Size of the perturbation used in estimating the standard errors via profile likelihood. If none is supplied, default is `h_N_scale = 1`.
-#' @param noSE Indicator for whether standard errors are desired. Defaults to noSE = FALSE.
+#' @param noSE Indicator for whether standard errors are desired. Defaults to \code{noSE = FALSE}.
 #' @param TOL Tolerance between iterations in the EM algorithm used to define convergence.
 #' @param MAX_ITER Maximum number of iterations allowed in the EM algorithm.
 #' @return
-#' \item{Coefficients}{dataframe with final coefficient and standard error estimates (where applicable).}
-
+#' \item{coeff}{dataframe with final coefficient and standard error estimates (where applicable) for the analysis model.}
+#' \item{outcome_err_coeff}{dataframe with final coefficient estimates for the outcome error model.}
+#' \item{Bspline_coeff}{dataframe with final B-spline coefficient estimates (where applicable).}
+#' \item{vcov}{variance-covarianced matrix for \code{coeff} (where applicable).}
 #' \item{converged}{indicator of EM algorithm convergence for parameter estimates.}
-
 #' \item{se_converged}{indicator of standard error estimate convergence.}
-
 #' \item{converged_msg}{(where applicable) description of non-convergence.}
-
 #' \item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
-
+#' \item{od_loglik_at_conv}{value of the observed-data log-likelihood at convergence.}
 #' @export
 
 logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
@@ -59,12 +58,15 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     {
       warning("Empty sieve in validated data. Reconstruct B-spline basis and try again.", call. = FALSE)
 
-      return(list(Coefficients = data.frame(Coefficient = NA,
-        SE = NA),
-      converged = FALSE,
-      se_converged = NA,
-      converged_msg = "B-spline error",
-      iterations = 0))
+      return(list(coeff = data.frame(coeff = NA, se = NA),
+                  outcome_err_coeff = data.frame(coeff = NA, se = NA),
+                  Bspline_coeff = NA,
+                  vcov = NA,
+                  converged = NA,
+                  se_converged = NA,
+                  converged_msg = "B-spline error",
+                  iterations = 0,
+                  od_loglik_at_conv = NA))
     }
 
   }
@@ -488,13 +490,15 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
     }
 
 
-    return(list(Coefficients = data.frame(Coefficient = matrix(NA, nrow = nrow(prev_theta)),
-      SE = NA),
-    converged = CONVERGED,
-    se_converged = NA,
-    converged_msg = CONVERGED_MSG,
-    iterations = it,
-    od_loglik_at_conv = NA))
+    return(list(coeff = data.frame(coeff = NA, se = NA),  
+                outcome_err_coeff = data.frame(coeff = NA, se = NA),  
+                Bspline_coeff = NA, 
+                vcov = NA,  
+                converged = FALSE,  
+                se_converged = NA,  
+                converged_msg = "MAX_ITER reached", 
+                iterations = it,  
+                od_loglik_at_conv = NA))
   }
 
   if(CONVERGED)
@@ -529,13 +533,15 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
      gamma = new_gamma,
      p = new_p)
 
-    return(list(Coefficients = data.frame(Coefficient = new_theta,
-      SE = NA),
-    converged = CONVERGED,
-    se_converged = NA,
-    converged_msg = CONVERGED_MSG,
-    iterations = it,
-    od_loglik_at_conv = od_loglik_theta))
+    return(list(coeff = data.frame(coeff = new_theta, se = NA),
+                outcome_err_coeff = data.frame(coeff = new_gamma, se = NA),
+                Bspline_coeff = cbind(k = comp_dat_val[, "k"], new_p),
+                vcov = NA,
+                converged = CONVERGED,
+                se_converged = NA,
+                converged_msg = CONVERGED_MSG,
+                iterations = it,
+                od_loglik_at_conv = od_loglik_theta))
   }
   else
   {
@@ -673,15 +679,15 @@ logreg2ph <- function(Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL
       TRUE
     }
 
-    return(list(Coefficients = data.frame(Coefficient = new_theta,
-      SE = se_theta),
-    vcov = cov_theta,
-    converged = CONVERGED,
-    se_converged = SE_CONVERGED,
-    converged_msg = CONVERGED_MSG,
-    iterations = it,
-    od_loglik_at_conv = od_loglik_theta,
-    bspline_coef = new_p))
+    return(list(coeff = data.frame(coeff = new_theta, se = se_theta),
+                outcome_err_coeff = data.frame(coeff = new_gamma, se = NA),
+                Bspline_coeff = cbind(k = comp_dat_val[, "k"], new_p),
+                vcov = cov_theta,
+                converged = CONVERGED,
+                se_converged = SE_CONVERGED,
+                converged_msg = CONVERGED_MSG,
+                iterations = it,
+                od_loglik_at_conv = od_loglik_theta))
   }
 }
 
