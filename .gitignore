@@ -2,7 +2,6 @@
 .Rhistory
 .RData
 .Ruserdata
-
-src/.DS_Store
-
-.DS_Store
+src/*.o
+src/*.so
+src/*.dll

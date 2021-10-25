@@ -1,10 +1,6 @@
 # Efficient odds ratio estimation under two-phase sampling using error-prone data from a multi-national HIV research cohort
 ## Lotspeich, Shepherd, Amorim, Shaw, and Tao
-The complete R package `logreg2ph` and code for the simulation settings included in the paper. 
-
-### Citation
-
-Lotspeich, SC, Shepherd, BE, Amorim, GC, Shaw, PA, Tao, R. Efficient odds ratio estimation under two-phase sampling using error-prone data from a multi-national HIV research cohort. *Biometrics*. 2021; 1– 12. https://doi.org/10.1111/biom.13512
+The complete R package `logreg2ph` and code for the simulation settings included in the paper (https://doi.org/10.1111/biom.13512). 
 
 ### Install
 To install the package, run the following in your `R` console: 
@@ -12,8 +8,6 @@ To install the package, run the following in your `R` console:
 ```{r}
 devtools::install_github("sarahlotspeich/logreg2ph")
 ```
-
-*Note: On Mac, we noticed there were some conflicts between the C++ code that supports this package and Python/Anaconda. If you experience this, the R-only version of this package can be found at https://github.com/sarahlotspeich/logreg2ph_R_only.*
 
 ### Simulation settings 
 Inside the `simulations` subdirectory, you will find the following: 
@@ -58,7 +52,7 @@ theta1 <- - theta0 - log((1 - sensY) / sensY)
 Ystar <- rbinom(n = N, size = 1, prob = (1 + exp(- (theta0 - 0.2 * Xbstar + theta1 * Y - 0.2 * Xb - 0.1 * Xa))) ^ (- 1))
 ```
 
-Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on Y* (naive case-control). Based on these designs, the validation indicators V are generated as follows: 
+Then, the user has the option of two audit designs: simple random sampling (SRS) or 1:1 case-control sampling based on $Y^*$ (naive case-control). Based on these designs, the validation indicators V are generated as follows: 
 
 ```{r, eval = FALSE}
 # Choose audit design: SRS or -----------------------------
