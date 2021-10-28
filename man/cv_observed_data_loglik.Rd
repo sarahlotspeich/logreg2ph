@@ -15,7 +15,6 @@ cv_observed_data_loglik(
   X_val = NULL,
   C = NULL,
   Validated = NULL,
-  Bspline = NULL,
   data,
   theta_pred = NULL,
   gamma_pred = NULL,
@@ -42,9 +41,7 @@ cv_observed_data_loglik(
 
 \item{Validated}{Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.}
 
-\item{Bspline}{Vector of column names containing the B-spline basis functions.}
-
-\item{data}{A dataframe with one row per subject containing columns: \code{Y_unval}, \code{Y_val}, \code{X_unval}, \code{X_val}, \code{C}, \code{Validated}, and \code{Bspline}.}
+\item{data}{A dataframe with one row per subject containing columns: \code{Y_unval}, \code{Y_val}, \code{X_unval}, \code{X_val}, \code{C}, and \code{Validated}.}
 
 \item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
 
