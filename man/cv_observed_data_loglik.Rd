@@ -6,6 +6,8 @@
 This function returns the value of the observed-data log-likelihood based on cross-validation.}
 \usage{
 cv_observed_data_loglik(
+  q = 4,
+  sN = 10,
   fold,
   Y_unval = NULL,
   Y_val = NULL,
@@ -22,6 +24,10 @@ cv_observed_data_loglik(
 )
 }
 \arguments{
+\item{q}{Degree of the B-spline basis. Default is \code{q = 4} for a cubic B-spline basis.}
+
+\item{sN}{Total number of B-spline basis functions. Defualt is \code{sN = 10} functions.}
+
 \item{fold}{Column name with the assigned fold for cross-validation.}
 
 \item{Y_unval}{Column name with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.}

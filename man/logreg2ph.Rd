@@ -3,7 +3,7 @@
 \name{logreg2ph}
 \alias{logreg2ph}
 \title{Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)}
+This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2021)}
 \usage{
 logreg2ph(
   Y_unval = NULL,
@@ -24,44 +24,48 @@ logreg2ph(
 )
 }
 \arguments{
-\item{Y_unval}{Column with the unvalidated outcome (can be name or numeric index). If \code{Y_unval} is null, the outcome is assumed to be error-free.}
+\item{Y_unval}{Column name with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.}
 
-\item{Y_val}{Column with the validated outcome (can be name or numeric index)}
+\item{Y_val}{Column name with the validated outcome.}
 
-\item{X_unval}{Column(s) with the unvalidated predictors (can be name or numeric index).  If \code{X_unval} and \code{X_val} are \code{null}, all precictors assumed to be error-free.}
+\item{X_unval}{Column name(s) with the unvalidated predictors.  If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
 
-\item{X_val}{Column(s) with the validated predictors (can be name or numeric index). If \code{X_unval} and \code{X_val} are \code{null}, all precictors assumed to be error-free.}
+\item{X_val}{Column name(s) with the validated predictors. If \code{X_unval} and \code{X_val} are \code{null}, all precictors are assumed to be error-free.}
 
-\item{C}{(Optional) Column(s) with additional error-free covariates (can be name or numeric index)}
+\item{C}{(Optional) Column name(s) with additional error-free covariates.}
 
-\item{Validated}{Columns with the validation indicator (can be name or numeric index)}
+\item{Validated}{Column name with the validation indicator. The validation indicator can be defined as \code{Validated = 1} or \code{TRUE} if the subject was validated and \code{Validated = 0} or \code{FALSE} otherwise.}
 
-\item{Bspline}{Vector of columns containing the B-spline basis functions (can be name or numeric index)}
+\item{Bspline}{Vector of column names containing the B-spline basis functions.}
 
-\item{data}{A dataframe with one row per subject containing columns: Y_unval, Y_val, X_unval, X_val, C, Validated, and Bspline.}
+\item{data}{A dataframe with one row per subject containing columns: \code{Y_unval}, \code{Y_val}, \code{X_unval}, \code{X_val}, \code{C}, \code{Validated}, and \code{Bspline}.}
 
 \item{theta_pred}{Vector of columns in \code{data} that pertain to the predictors in the analysis model.}
 
 \item{gamma_pred}{Vector of columns in \code{data} that pertain to the predictors in the outcome error model.}
 
-\item{initial_lr_params}{Initial values for parametric model parameters. Choices include (1) "Zero" (non-informative starting values) or (2) "Complete-data" (estimated based on validated subjects only)}
+\item{initial_lr_params}{Initial values for parametric model parameters. Choices include (1) \code{"Zero"} (non-informative starting values) or (2) \code{"Complete-data"} (estimated based on validated subjects only)}
 
 \item{h_N_scale}{Size of the perturbation used in estimating the standard errors via profile likelihood. If none is supplied, default is \code{h_N_scale = 1}.}
 
-\item{noSE}{Indicator for whether standard errors are desired. Defaults to noSE = FALSE.}
+\item{noSE}{Indicator for whether standard errors are desired. Defaults to \code{noSE = FALSE}.}
 
 \item{TOL}{Tolerance between iterations in the EM algorithm used to define convergence.}
 
 \item{MAX_ITER}{Maximum number of iterations allowed in the EM algorithm.}
 }
 \value{
-\item{Coefficients}{dataframe with final coefficient and standard error estimates (where applicable).}
+\item{coeff}{dataframe with final coefficient and standard error estimates (where applicable) for the analysis model.}
+\item{outcome_err_coeff}{dataframe with final coefficient estimates for the outcome error model.}
+\item{Bspline_coeff}{dataframe with final B-spline coefficient estimates (where applicable).}
+\item{vcov}{variance-covarianced matrix for \code{coeff} (where applicable).}
 \item{converged}{indicator of EM algorithm convergence for parameter estimates.}
 \item{se_converged}{indicator of standard error estimate convergence.}
 \item{converged_msg}{(where applicable) description of non-convergence.}
 \item{iterations}{number of iterations completed by EM algorithm to find parameter estimates.}
+\item{od_loglik_at_conv}{value of the observed-data log-likelihood at convergence.}
 }
 \description{
 Sieve maximum likelihood estimator (SMLE) for two-phase logistic regression problems
-This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2020)
+This function returns the sieve maximum likelihood estimators (SMLE) for the logistic regression model from Lotspeich et al. (2021)
 }

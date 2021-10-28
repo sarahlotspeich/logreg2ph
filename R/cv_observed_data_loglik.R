@@ -1,6 +1,7 @@
 #' Cross-validated observed-data log-likelihood
 #' This function returns the value of the observed-data log-likelihood based on cross-validation.
-#'
+#' @param q Degree of the B-spline basis. Default is \code{q = 4} for a cubic B-spline basis.
+#' @param sN Total number of B-spline basis functions. Defualt is \code{sN = 10} functions.
 #' @param fold Column name with the assigned fold for cross-validation.
 #' @param Y_unval Column name with the unvalidated outcome. If \code{Y_unval} is null, the outcome is assumed to be error-free.
 #' @param Y_val Column name with the validated outcome.
@@ -17,9 +18,10 @@
 #' @return scalar value of the function
 #' @export
 
-cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
+cv_observed_data_loglik <- function(q = 4, sN = 10, fold, Y_unval = NULL, Y_val = NULL, X_unval = NULL, X_val = NULL, C = NULL,
                         Validated = NULL, Bspline = NULL, data, theta_pred = NULL, gamma_pred = NULL,
                         TOL = 1E-4, MAX_ITER = 1000) {
+
   if (is.null(theta_pred)) { theta_pred <- c(X_val, C) }
   if (is.null(gamma_pred) & !is.null(Y_unval)) { gamma_pred <- c(X_unval, Y_val, X_val, C) }
 
@@ -27,10 +29,32 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
   status <- rep(TRUE, num_folds)
   msg <- rep("", num_folds)
   ll <- rep(NA, num_folds)
-  #fold_ll <- re_fold_ll <- vector()
   for (i in 1:num_folds) {
     f <- unique(data[, fold])[i]
+    # Split training data
     train <- data[which(data[, fold] != f), ]
+    # Place B-splines on the training data
+    if (is.null(C)) {
+      B <- splines::bs(x = data[, X_unval],
+                       degree = (q - 1),
+                       df = sN,
+                       Boundary.knots = range(data[, X_unval]),
+                       intercept = TRUE)
+    } else {
+      B <- matrix(0, nrow = nrow(data), ncol = sN)
+      split_sN <- round(mean(data[, C] == 0), 2)
+      B[which(data[, C] == 0), 1:(split_sN * sN)] <- splines::bs(x = data[which(data[, C] == 0), X_unval],
+                                                                 degree = deg,
+                                                                 df = split_sN * sN,
+                                                                 Boundary.knots = range(data[which(data[, C] == 0), X_unval]),
+                                                                 intercept = TRUE)
+      B[which(data[, C] == 1), (split_sN * sN + 1):sN] <- splines::bs(x = data[which(data[, C] == 1), X_unval],
+                                                                      degree = deg,
+                                                                      df = (1 - split_sN) * sN,
+                                                                      Boundary.knots = range(data[which(data[, C] == 1), X_unval]),
+                                                                      intercept = TRUE)
+    }
+    # Fit the SMLE to training data
     suppressMessages(
       train_fit <- logreg2ph(Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
                              Validated = Validated, Bspline = Bspline, data = train,
@@ -39,8 +63,9 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
     )
     status[i] <- train_fit$converged
     msg[i] <- train_fit$converged_msg
-
+    # Check for model fit, if TRUE proceed with calculating for test data
     if (train_fit$converged) {
+      # Extract elements from SMLE fit to training data
       train_theta <- train_fit$coeff$coeff
       train_gamma <- train_fit$outcome_err_coeff$coeff
       train_p <- train_fit$Bspline_coeff
@@ -49,7 +74,7 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
       colnames(train_x) <- X_val
       train_x <- cbind(k = 1:nrow(train_x), train_x)
       train_p <- merge(train_x, train_p)
-
+      # Split test data
       test <- data[which(data[, fold] == f), ]
       test_x <- data.frame(test[test[, Validated] == 1, X_val])
       test_x <- data.frame(test_x[order(test_x[, 1]), ])
