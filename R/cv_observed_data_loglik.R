@@ -30,7 +30,7 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
   #fold_ll <- re_fold_ll <- vector()
   for (i in 1:num_folds) {
     f <- unique(data[, fold])[i]
-    train <- data[which(data[, fold] == f), ]
+    train <- data[which(data[, fold] != f), ]
     suppressMessages(
       train_fit <- logreg2ph(Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
                              Validated = Validated, Bspline = Bspline, data = train,
@@ -50,7 +50,7 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
       train_x <- cbind(k = 1:nrow(train_x), train_x)
       train_p <- merge(train_x, train_p)
 
-      test <- data[which(data[, fold] != f), ]
+      test <- data[which(data[, fold] == f), ]
       test_x <- data.frame(test[test[, Validated] == 1, X_val])
       test_x <- data.frame(test_x[order(test_x[, 1]), ])
       colnames(test_x) <- X_val
@@ -87,12 +87,6 @@ cv_observed_data_loglik <- function(fold, Y_unval = NULL, Y_val = NULL, X_unval 
       # Construct complete dataset
       cd <- complete_data(Y_unval = "Ystar", Y_val = "Y", X_unval = "Xbstar", X_val = "Xb", C = "Xa",
                           Validated = "V", Bspline = colnames(B), data = test)
-      # Calculate log-likelihood -------------------------------------------
-      # ll <- observed_data_loglik(N = nrow(test), n = sum(test[, Validated]),
-      #                            Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
-      #                            Bspline = Bspline, comp_dat_all = cd, theta_pred = theta_pred, gamma_pred = gamma_pred,
-      #                            theta = train_theta, gamma = train_gamma, p = test_p)
-      # fold_ll <- append(fold_ll, ll)
 
       ll_f <- observed_data_loglik(N = nrow(test), n = sum(test[, Validated]),
                                  Y_unval = Y_unval, Y_val = Y_val, X_unval = X_unval, X_val = X_val, C = C,
