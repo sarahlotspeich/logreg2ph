@@ -9,6 +9,8 @@ To install the package, run the following in your `R` console:
 devtools::install_github("sarahlotspeich/logreg2ph")
 ```
 
+This is the original version of the package. Going forward, the package `logreg2ph` has been incorporated into the `sleev` package, which is now available on CRAN. Note: some documentation and function names from `logreg2ph` have been updated for consistency across `sleev`. 
+
 #### Note to Mac users: 
 
 This package employs `Rcpp` and `RcppArmadillo`, and it seems that for some Mac users there is conflict between these packages and Anaconda. If you experience errors installing the package, an R-only version is available on [this](https://github.com/sarahlotspeich/logreg2ph_R_only) repo.
